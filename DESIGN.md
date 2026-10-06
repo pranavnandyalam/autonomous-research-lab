@@ -8,15 +8,27 @@ Read this before changing anything in the kit.
 ```
 Mac host (outside the VM)                         sbx microVM "agent-lab" (half your cores/RAM, 60g disk, no mounts)
 ─────────────────────────                         ─────────────────────────────────────────────
-caffeinate + tmux                                 /home/agent/agent-lab   (clone of your private lab repo)
+caffeinate + tmux                                 team main: /home/agent/agent-lab (own clone of the lab repo)
  ├─ agent-loop.sh main ── sbx exec ──────────────▶ timeout 50m claude -p  (Lead, dontAsk mode)
  │    pre-check, tripwires, audit,                    ├─ scout ×≤3 (read-only + web)
  │    classify result, alerts, backoff                ├─ builder ×≤2 (one project folder each)
- ├─ tg-bridge.py ◀──▶ Telegram (owner only)           ├─ overseer / ethics-reviewer
- ├─ LaunchAgent: restore after login                  └─ safety-guard → git push main
+ │                                                    ├─ overseer / ethics-reviewer
+ │                                                    ├─ paper-writer (IEEE paper for a finished project)
+ │                                                    └─ safety-guard → git push main
+ ├─ agent-loop.sh beta ── sbx exec ──────────────▶ team beta: /home/agent/agent-lab-beta (optional,
+ │                                                    same Lead + six subagents, own clone)
+ ├─ referee.sh (after a pushed cycle, ───────────▶ referee: fresh copy of ONE project, read-only + web,
+ │    only if a paper's content changed)              reads of every lab clone denied
+ ├─ manager.sh (LaunchAgent, daily; /review) ────▶ manager: own clone, Read/Glob/Grep only
+ ├─ tg-bridge.py ◀──▶ Telegram (owner only)
+ ├─ LaunchAgent: restore after login
  └─ LaunchAgent: bag guard (optional)
 sbx host proxy: GitHub token + network allowlist ─────▶ github.com/<you>/agent-lab (private)
 ```
+
+Each team is one Lead with six subagents (scout, builder, overseer, ethics reviewer, safety guard, paper writer).
+The manager and the referee are not part of any team: the manager advises the teams once a day, the referee attacks
+each finished paper, and both report to you on Telegram.
 
 - **Why Docker Sandboxes (`sbx`) and not a plain container:** sbx gives deny-all networking with a domain allowlist,
   credentials injected by a host proxy (the token never exists inside the VM), and a separate kernel per sandbox.
@@ -38,7 +50,7 @@ sbx host proxy: GitHub token + network allowlist ─────▶ github.com/<
 | claude.ai connector leak | sbx `--deny-network mcp-proxy.anthropic.com` plus a global deny rule, `--strict-mcp-config`, `--disallowedTools "mcp__*"`; preflight test 11 |
 | Host compromise | mountless VM with its own kernel, SSH agent forwarding off, diagnostics upload off, shared skills off |
 | Malicious models/packages | safetensors/GGUF only, never `trust_remote_code`, pinned well-known packages, overseer reviews new dependencies |
-| Runaway usage | 50 min timeout, 150 max turns, `MAX_CYCLES_PER_DAY` (default 6), backoff on idle and limits, halt after 5 failures |
+| Runaway usage | 50 min timeout, 150 max turns, `MAX_CYCLES_PER_DAY` per team (default 6), backoff on idle and limits, halt after 5 failures |
 | Hot laptop in a bag | portable power mode; bag guard (§6) |
 | Terminal escape codes in agent text | the board, step viewer, supervisor log and log pane strip control characters before anything reaches your terminal (an injected `ESC ]52` could otherwise rewrite the clipboard) |
 | Telegram summary model | runs inside the VM with `--tools ""` and no MCP: agent output may carry injected text, so it never reaches a Claude that has tools or connectors |
@@ -62,6 +74,10 @@ are the network allowlist, the token scope, the ruleset, and the host-side check
   Deny beats allow. `--method`/`--path` exist for HTTP rules.
 - `*.hf.co` matches one label only: Hugging Face's Xet storage serves file bytes from `us.aws.cdn.hf.co` and
   `cas-server.xethub.hf.co`, so both are allow-listed explicitly (found when every model download returned 403).
+- **No GPU, CPU-only torch:** the sandbox is a Linux microVM, and Apple's GPU (MPS/MLX) needs Metal, which a Linux
+  guest cannot reach. `build_cmd` in `agent-loop.sh` runs every cycle with `UV_TORCH_BACKEND=cpu`,
+  `HF_HOME=/home/agent/models/hf_cache` (one shared model cache) and `PIP_NO_CACHE_DIR=1`. `download.pytorch.org`
+  and `download-r2.pytorch.org` are in `ALLOW_PACKAGES` for the CPU wheels (decision 12).
 - **The built-in `claude` agent kit adds a per-sandbox allow for `mcp-proxy.anthropic.com:443`** (plus a few claude.com
   hosts used by `/login`). The kit's explicit deny wins; never remove `DENY_DOMAINS`.
 - GitHub secret: `sbx secret set github --sandbox agent-lab`. The VM sees `GH_TOKEN` as a sentinel that the host proxy
@@ -85,6 +101,12 @@ are the network allowlist, the token scope, the ruleset, and the host-side check
 - Usage-limit messages ("hit your … limit", 429) → the loop sleeps an hour. `--max-turns` reached is a normal end.
 - Each cycle ends with `CYCLE_RESULT: <PROGRESS|NOTHING_TO_DO|ASK_USER|REJECTED|BLOCKED> | project=… | pushed=… | note=…`.
 
+### tmux (`agent-ctl.sh`, `view.sh`)
+- Sessions: `agent-loop` (team main), `agent-loop-<team>`, `agent-tg` (bridge), `agent-view[-<team>]` (viewer).
+- **Every target uses exact matching (`-t =name`).** tmux prefix-matches a bare name, so `has-session -t agent-loop`
+  matched `agent-loop-beta`: with only team beta running, `agent-ctl.sh on` could report team main as already
+  running and skip it.
+
 ## 4. Decision log
 
 1. **Permission mode:** `--dangerously-skip-permissions` ignores deny rules, so the default is `dontAsk` (auto-denies
@@ -100,32 +122,64 @@ are the network allowlist, the token scope, the ruleset, and the host-side check
 6. **Deployed copy:** macOS blocks LaunchAgents from reading `~/Documents` ("Operation not permitted"), so the kit runs
    from `~/agent-lab-kit` (`deploy.sh`). `rsync` replaces files by rename, so a running loop keeps its old copy.
 7. **Personal values** live in the git-ignored `config.local.sh`, so a fork cannot leak them by accident.
-10. **Manager review is advisory and read-only.** It reads agent-written files (a prompt-injection surface), so it
-    gets only Read/Glob/Grep in its own clone, numbers come from the host's logs (HOST_FACTS), and its advice enters a
-    team's cycle in a separate MANAGER_ADVICE block that the manual says never overrides goals, owner messages or
-    the manual. It never writes into the owner-message queue.
+8. **Manager review is advisory and read-only.** It reads agent-written files (a prompt-injection surface), so it
+   gets only Read/Glob/Grep in its own clone, numbers come from the host's logs (HOST_FACTS), and its advice enters a
+   team's cycle in a separate MANAGER_ADVICE block that the manual says never overrides goals, owner messages or
+   the manual. It never writes into the owner-message queue.
 9. **Multiple teams share one sandbox but not a working tree.** Each non-main team runs from its own clone
    (`setup.sh team`), with its own lock, log, state file, owner-message queue, daily counter and Telegram board.
    Coordination is in the manual (§5b): claim in `CLAIMS.md` before starting, `team: <id>` on every PLAN.md,
    append-only shared files, stage only your own paths. GitHub serializes pushes; pull --rebase resolves the rest.
-8. **Novelty first by default.** The example goals and the manual's fallback both aim for new contributions;
-   replication is a baseline step. Each PLAN.md opens with "What's new here" plus a literature check the
-   overseer verifies. Owners change goals by editing `north-star.md` (GitHub, `goals.sh`, read via `/goals`);
-   the agent can never edit it.
+10. **Novelty first by default.** The example goals and the manual's fallback both aim for new contributions;
+    replication is a baseline step. Each PLAN.md opens with "What's new here" plus a literature check the
+    overseer verifies. Owners change goals by editing `north-star.md` (GitHub, `goals.sh`, read via `/goals`);
+    the agent can never edit it.
+11. **An external referee for papers.** The team's overseer is part of the team: it sees the team's notes and
+    earlier verdicts, so it is a weak last check on a paper. The referee (`referee.sh` + `referee.md`) is independent of every team: it
+    runs from its own clone with a fresh copy of only the one project as its working directory, and reads of all lab
+    clones are denied, so the team's notes, logs and reviewer verdicts cannot bias it. It has read-only tools plus
+    web search and fetch (no shell, no writes) and adversarial instructions: trace numbers to raw data, look for
+    leakage, cherry-picking and missing baselines, compare with PLAN.md, search for missed prior work, fetch every
+    reference. It alerts the owner prominently only when the paper is worth their time (otherwise one line), sends
+    required fixes to the owning team as REFEREE_REPORT, and reviews a paper at most `REFEREE_MAX_ROUNDS` (3) times.
+    It runs after a pushed cycle only when a paper's content hash (the git tree of `paper/`) changed, so a cycle
+    without a new or revised paper costs nothing.
+12. **CPU-only torch and one model cache.** The sandbox is a Linux microVM with no GPU: Apple's GPU (MPS/MLX) needs
+    Metal, which a Linux guest cannot reach. The default torch wheel still pulls ~4 GB of unusable CUDA libraries into
+    every project venv, a fast way to fill the 60 GB disk. Each cycle therefore runs with `UV_TORCH_BACKEND=cpu`,
+    `HF_HOME=/home/agent/models/hf_cache` (one shared model cache instead of one per project) and
+    `PIP_NO_CACHE_DIR=1`; the manual (§7) says to install with `uv` only and never CUDA, `nvidia-*` or `triton`
+    wheels; `download.pytorch.org` and `download-r2.pytorch.org` are allow-listed for the CPU wheels.
 
 ## 5. Operations
 
+- **No process outlives its cycle.** After every cycle the supervisor terminates processes whose working directory
+  is inside that team's clone (exact path prefix, so `agent-lab` never matches `agent-lab-beta`; git commands are
+  skipped; only numeric PIDs reach `kill`). A timed-out cycle can no longer leave a long job competing with the next
+  one; long jobs checkpoint and resume instead.
 - **Loop:** every iteration checks pauses, power (portable mode), host disk, the daily cap, the VM, a pre-check in the
   VM (fetch, STOP, tripwires, fingerprint, VM disk, `questions.md` changes, dead-man), and the history audit; then one
   cycle; then classifies it (OK / IDLE / MAXTURNS / TIMEOUT / RATELIMIT / AUTH / TRANSIENT / INTERRUPTED / FAIL) and
   sleeps accordingly (10 min after a productive cycle, 5 → 30 min when idle, 1 h on a usage limit).
-- **Telegram:** pinned live board (who is doing what, the Lead's checklist, key steps), a message after every cycle,
-  `/status /live /explain /last /radar /pause /stop /go /kill /digest`, free text queued for the agent, a digest at
-  20:00. Bot token in the macOS Keychain; only your numeric id, private chat only. Turn on two-step verification.
+- **Questions alert:** the pre-check reports a hash of `questions.md` on `origin/main`. Each team keeps its own copy
+  of that hash (each clone fetches at its own time, so a shared one flip-flopped and re-alerted). On a change the
+  alert lists the open questions (`### ... [OPEN]` headings), keyed on that list and shared across teams, so the same
+  set of open questions alerts at most once a day.
+- **Telegram:** pinned live board per team (who is doing what, the Lead's checklist, key steps), a message after
+  every cycle, a digest at `DIGEST_HOUR` (20:00). Commands (`tg-bridge.py` `handle()`):
+  - `/status`; `/live` (`/live off`, `/live on`); `/explain [team]`; `/last [team]` (the newest *finished* cycle's
+    report, of one team or of any team, noting a still-running cycle); `/radar`; `/goals`; `/digest`
+  - `/review` (manager review now); `/stop` (idle after this cycle); `/kill` (stop the sandbox now); `/go` (resume,
+    clears a pause); `/pause 2h` (or `30m`); `/help`
+  - free text (or `/note text`) is queued for every team's next cycle; `@team text` for one team only;
+    `@team /command` runs the command for that team (`@beta /last` = `/last beta`)
+
+  Bot token in the macOS Keychain; only your numeric id, private chat only. Turn on two-step verification.
 - **Restarts:** with FileVault, nothing runs after a cold reboot until you log in; then the LaunchAgent restores the lab
   if it was on. Turn off automatic macOS update restarts.
-- **Several loops** are supported (`agent-loop.sh <id>`, `agent-ctl.sh on main second`): own lock, log and state file
-  each, one global daily cap, one shared usage quota.
+- **Several loops** are supported (`agent-loop.sh <id>`, `agent-ctl.sh on main beta`): own lock, log and state file
+  each, a daily cap per team (`MAX_CYCLES_PER_DAY` each; override one team with `LOOP_<id>_MAX_CYCLES`), one shared
+  usage quota.
 - **Local models (idea):** run a server on the host (Metal GPU) and point a second loop at it with
   `LOOP_<id>_BASE_URL=http://host.docker.internal:<port>` after `sbx policy allow network localhost:<port>`. The server
   must expose an Anthropic-compatible endpoint. Give local loops low-stakes work only.

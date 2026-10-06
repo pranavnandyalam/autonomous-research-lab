@@ -40,7 +40,7 @@ flowchart LR
   end
 
   PROXY{{"Host proxy<br/>deny-all network + allowlist<br/>holds the GitHub token"}}
-  NET["Research sites<br/>arXiv · Hugging Face · Semantic Scholar · HN · PyPI"]
+  NET["Research sites<br/>arXiv · Hugging Face · Semantic Scholar · HN<br/>PyPI · npm · PyTorch CPU wheels"]
   REPO[("Private lab repo on GitHub<br/>projects · radar · backlog · CLAIMS.md<br/>north-star.md is yours · main is protected")]
   API["Anthropic API"]
 
@@ -74,7 +74,7 @@ AI): it starts each cycle, enforces the limits, and alerts you. You steer the la
 |---|---|---|
 | 🧠 Lead | Sonnet | Runs each cycle: reads your goals, decides what to do, coordinates, commits and pushes |
 | 🔍 Scouts (up to 3) | Sonnet | Search arXiv, Hugging Face, Hacker News, Semantic Scholar for trends and open problems |
-| 🛠 Builder (up to 2) | Sonnet | Writes and runs the experiment code in one project folder each |
+| 🛠 Builder (up to 2) | Opus | Writes and runs the experiment code in one project folder each |
 | 🧐 Overseer | Opus | Skeptical reviewer of every plan, diff and result; can reject |
 | ⚖️ Ethics reviewer | Sonnet | Harm, privacy, licensing, honesty checks |
 | 🛡 Safety guard | Sonnet | Gate before every commit: secrets, forbidden files, repo and remote checks |
@@ -92,16 +92,23 @@ note) and an IEEE-format paper that an independent referee tries to tear apart (
 The reviewer agents catch sloppy or harmful work, but they are AIs too, so the hard limits do not depend on them:
 
 - **Sandbox:** a Docker Sandboxes microVM with its own kernel and no access to your files (no shared folders).
-- **Network allowlist:** deny-all, plus arXiv, GitHub, Hugging Face, Semantic Scholar, HN, PyPI, npm. The claude.ai
-  connector proxy is explicitly denied, so your Gmail/Drive/other connectors can never reach the agent.
+- **Network allowlist:** deny-all, plus arXiv, GitHub, Hugging Face, Semantic Scholar, HN, PyPI, npm, and
+  `download.pytorch.org` / `download-r2.pytorch.org` (CPU-only torch wheels). The claude.ai connector proxy is
+  explicitly denied, so your Gmail/Drive/other connectors can never reach the agent.
+- **CPU only, small disk footprint:** every cycle runs with `UV_TORCH_BACKEND=cpu`, `HF_HOME` pointing at one shared
+  model cache (`/home/agent/models/hf_cache`) and `PIP_NO_CACHE_DIR=1`. The manual (§7) says to install packages
+  with `uv` only and never CUDA, `nvidia-*` or `triton` wheels: the default torch wheel drags ~4 GB of unusable CUDA
+  libraries into every venv on a VM with no GPU. There is no GPU because the sandbox is a Linux microVM, and Apple's
+  GPU (MPS/MLX) needs Metal, which a Linux guest cannot reach.
 - **GitHub token outside the VM:** a fine-grained token that can only touch the one lab repo is held by the host
   proxy; the VM only ever sees a placeholder.
 - **Protected history:** a branch ruleset blocks force pushes and deletion on `main`; the host also audits that `main`
   only ever moves forward.
 - **Permissions:** Claude runs in `dontAsk` mode with an allow list and enforced deny rules (no sudo, no force push,
   no editing its own config or hooks, no reading credentials).
-- **A supervisor that is not an AI:** `agent-loop.sh` on your Mac enforces a 50-minute cycle limit, a daily cycle cap,
-  tripwires for the agent changing its own configuration, a halt after repeated failures, and alerts.
+- **A supervisor that is not an AI:** `agent-loop.sh` on your Mac enforces a 50-minute cycle limit, a daily cycle
+  cap per team, cleanup of any process a cycle leaves running in its clone, tripwires for the agent changing its
+  own configuration, a halt after repeated failures, and alerts.
 - **You:** a pinned Telegram live board, a message after every cycle, and `/kill` to stop it instantly.
 
 `preflight.sh` tests all of this automatically (network, isolation, secrets, token scope, connector leak); fix
@@ -182,13 +189,17 @@ section unless you know why you are removing it.
 | Status | `~/agent-lab-kit/agent-ctl.sh status` | `/status` |
 | Watch everything live | `./view.sh` (tmux: every step, the board, the log; reopen with `tmux attach -t agent-view`) | pinned live board, `/live` |
 | Plain-English summary | | `/explain` (also added to the board when each cycle ends) |
-| Last cycle's report, trend radar | `python3 activity.py` | `/last`, `/radar` |
+| Last cycle's report, trend radar | `python3 activity.py` | `/last [team]`, `/radar` |
 | Pause / stop after this cycle / resume | `agent-ctl.sh pause 2h` / `stop` / `go` | `/pause 2h` / `/stop` / `/go` |
 | Stop right now | `agent-ctl.sh kill` | `/kill` |
 | Everything off | `agent-ctl.sh off` | add a `STOP` file to the repo |
 | See / change the lab's goals | `./goals.sh show` / `./goals.sh edit` | `/goals` |
 | Tell the agent something | | any text message (read at the start of the next cycle) |
 | Make your edits to the kit live | `bash deploy.sh` | |
+
+The agent asks you things in `questions.md` in the lab repo; answer there (on GitHub). Each team watches that file,
+and when it changes you get one Telegram alert listing the open questions; the same set of open questions alerts at
+most once a day, however many teams see the change.
 
 Nothing here deletes work: a stopped sandbox keeps its files, and everything pushed stays on GitHub.
 `bash uninstall.sh` removes everything the kit set up (it asks before each part and never deletes your repo).
@@ -206,7 +217,10 @@ TEAM=beta bash setup.sh team          # clone + safety hook for team "beta"
 bash deploy.sh && ~/agent-lab-kit/agent-ctl.sh on     # starts every team in TEAMS
 ./view.sh beta                        # live terminal view of team beta
 ```
-Telegram: free text goes to every team, `@beta ...` to one team, `/explain beta` summarizes one. Each team's cycles
+Telegram: free text goes to every team, `@beta ...` to one team, and `@beta /last` (or any `@team /command`) runs
+that command for one team. `/explain beta` summarizes one team; `/last beta` shows that team's latest finished cycle
+report, while plain `/last` shows the newest finished report of any team (and says so if a cycle is still running).
+Each team's cycles
 cost the same as one team's, so usage scales with the number of teams; `MAX_CYCLES_PER_DAY` is per team. Two teams
 fit an 18-core Mac comfortably; more teams compete for the sandbox's CPU.
 
@@ -227,7 +241,8 @@ project stays your call. A review costs roughly $0.25-2 with Opus.
 
 When a project is finished, its team's **paper writer** produces `projects/<slug>/paper/`: an IEEE conference
 paper (`main.tex` in IEEEtran, `refs.bib` with fetched and verified references, figures made by a committed script,
-and the compiled `main.pdf`). The team's overseer checks it in PAPER mode before it is committed.
+and the compiled `main.pdf`). The team's overseer checks it in PAPER mode before it is committed. The rules are in
+the manual, `prompt.md` §8b.
 
 After every pushed cycle the host looks for new or changed papers and sends each one to an **external referee**
 (`referee.sh` + `referee.md`, Opus by default). It is built to have no stake in the work:
@@ -268,7 +283,8 @@ with apt inside the sandbox, then remove the allow rule (`setup.sh referee` chec
 `config.local.sh.example` your values · `render.py` fills your values into the templates · `setup.sh` setup ·
 `preflight.sh` safety tests · `goals.sh` read or change the goals · `agent-loop.sh` supervisor · `agent-ctl.sh` controls · `deploy.sh` make edits live ·
 `tg-bridge.py` Telegram · `activity.py` live board · `narrate.py` plain-English summary · `watch-cycle.sh` terminal
-viewer · `view.sh` all-in-one live view · `bag-guard.sh` battery safety · `referee.sh`/`referee.md` paper referee · `uninstall.sh` remove everything · `pre-commit-hook.sh` installed in the lab
+viewer · `view.sh` all-in-one live view · `bag-guard.sh` battery safety · `manager.sh`/`manager.md` daily manager
+review · `referee.sh`/`referee.md` paper referee · `uninstall.sh` remove everything · `pre-commit-hook.sh` installed in the lab
 repo · `repo-seed/` the lab repo's starting files · [DESIGN.md](DESIGN.md) why it works this way
 
 ## License and disclaimer
