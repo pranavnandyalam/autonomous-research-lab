@@ -11,6 +11,58 @@ watch and steer it from your phone over Telegram.
 > Claude Code 2.1.280 in the sandbox). Expect rough edges, read [DESIGN.md](DESIGN.md) before running it, and
 > start with the supervised single cycle.
 
+## How it fits together
+
+```mermaid
+flowchart LR
+  subgraph PHONE["📱 You, from anywhere"]
+    TG["Telegram bot<br/>live boards · /status · /explain · /review · /kill"]
+    GHAPP["GitHub<br/>edit north-star.md · add a STOP file"]
+  end
+
+  subgraph MAC["💻 Your Mac, outside the sandbox"]
+    LOOPS["Supervisor loop per team<br/>agent-loop.sh: time limits, daily caps,<br/>tripwires, history audit, alerts"]
+    BRIDGE["Telegram bridge<br/>tg-bridge.py"]
+    MGR["Daily manager review<br/>manager.sh"]
+    JOBS["Background jobs<br/>restore after reboot · bag guard"]
+  end
+
+  subgraph VM["🔒 Docker Sandboxes microVM: own kernel, cannot see your files"]
+    subgraph TEAMA["Team main, own clone"]
+      LA["🧠 Lead"] --> SA["🔍 Scouts · 🛠 Builder · 🧐 Overseer<br/>⚖️ Ethics reviewer · 🛡 Safety guard"]
+    end
+    subgraph TEAMB["Team beta, own clone (optional)"]
+      LB["🧠 Lead"] --> SB["Same five subagents"]
+    end
+    MR["📋 Manager<br/>read-only clone"]
+  end
+
+  PROXY{{"Host proxy<br/>deny-all network + allowlist<br/>holds the GitHub token"}}
+  NET["Research sites<br/>arXiv · Hugging Face · Semantic Scholar · HN · PyPI"]
+  REPO[("Private lab repo on GitHub<br/>projects · radar · backlog · CLAIMS.md<br/>north-star.md is yours · main is protected")]
+  API["Anthropic API"]
+
+  LOOPS -- "runs one cycle at a time" --> TEAMA
+  LOOPS -- "runs one cycle at a time" --> TEAMB
+  MGR -- "once a day" --> MR
+  TEAMA -.-> PROXY
+  TEAMB -.-> PROXY
+  MR -.-> PROXY
+  PROXY --> NET
+  PROXY --> REPO
+  PROXY --> API
+  LOOPS -- "alerts and cycle summaries" --> BRIDGE
+  MGR -- "report and advice" --> BRIDGE
+  BRIDGE <--> TG
+  BRIDGE -- "your messages" --> LOOPS
+  GHAPP --> REPO
+  LOOPS -- "history audit with your own login" --> REPO
+```
+
+Everything the agents do happens inside the sandbox. They reach the internet only through the host proxy's allowlist,
+and GitHub only through a token that never enters the sandbox. The supervisor loop on your Mac is plain shell (not an
+AI): it starts each cycle, enforces the limits, and alerts you. You steer the lab with `north-star.md` and Telegram.
+
 ## The team
 
 | Agent | Default model | Job |
