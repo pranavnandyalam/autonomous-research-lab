@@ -146,7 +146,7 @@ if worth.startswith("YES"):
     send("📄✅ Paper worth your time: %s (team %s, referee round %s)\nVerdict: %s · Venue: %s\nScores: %s\n\n%s\n\nRemaining issues:\n%s\n\nPDF: %s\n(review cost $%.2f)"
          % (slug, team, rnd, verdict, venue, scores, summary, holes, pdf, cost))
 else:
-    first = re.split(r"(?<=[.!?])\s", summary, 1)[0] if summary else ""
+    first = re.split(r"(?<=[.!?])\s", summary, maxsplit=1)[0] if summary else ""
     send("📄 Referee: %s (team %s, round %s) is %s, not worth your time yet. %s Fixes sent to team %s. ($%.2f)"
          % (slug, team, rnd, verdict, first, team, cost))
 PY
