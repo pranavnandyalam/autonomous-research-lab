@@ -11,6 +11,7 @@
 # and picks up the new one the next time it starts. The Telegram bridge is restarted (it has no in-flight work).
 set -u
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+KIT="$SRC"   # config.sh finds config.local.sh via $KIT, wherever deploy.sh is run from
 # shellcheck disable=SC1091
 . "$SRC/config.sh"
 DEST="$AGENT_DEPLOY_DIR"
