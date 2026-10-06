@@ -237,26 +237,39 @@ def cmd_digest():
     return "\n".join(lines)
 
 
-def cmd_last():
-    """The Lead's own end-of-cycle report (the stream-json result line of the newest cycle)."""
-    files = sorted(glob.glob(os.path.join(STATE, "outputs", "cycle-*.json")), key=os.path.getmtime)
-    if not files:
-        return "No cycles yet."
-    path = files[-1]
+def cycle_result(path):
+    """The stream-json result event of a cycle output file, or None while it is still running."""
     try:
         lines = open(path, errors="replace").read().splitlines()
-    except OSError as e:
-        return "Could not read the last cycle: %s" % type(e).__name__
+    except OSError:
+        return None
     for line in reversed(lines):
         try:
             e = json.loads(line)
         except ValueError:
             continue
         if isinstance(e, dict) and e.get("type") == "result":
-            head = "%s | %s | %s turns | %s min" % (os.path.basename(path), e.get("subtype"), e.get("num_turns"),
-                                                   round((e.get("duration_ms") or 0) / 60000, 1))
-            return head + "\n\n" + str(e.get("result") or "(no report text)")[:3500]
-    return "%s is still running (or ended without a result). Last output %s." % (os.path.basename(path), ago(os.path.getmtime(path)))
+            return e
+    return None
+
+
+def cmd_last(team=None):
+    """The Lead's own end-of-cycle report from the newest FINISHED cycle (of one team, or of any team)."""
+    pat = "cycle-*-%s.json" % team if team else "cycle-*.json"
+    files = sorted(glob.glob(os.path.join(STATE, "outputs", pat)), key=os.path.getmtime, reverse=True)
+    if not files:
+        return "No cycles yet."
+    note = ""
+    for path in files[:6]:
+        e = cycle_result(path)
+        if e is None:
+            if not note:
+                note = "(%s is still running; showing the last finished cycle)\n" % os.path.basename(path)
+            continue
+        head = "%s | %s | %s turns | %s min" % (os.path.basename(path), e.get("subtype"), e.get("num_turns"),
+                                               round((e.get("duration_ms") or 0) / 60000, 1))
+        return note + head + "\n\n" + str(e.get("result") or "(no report text)")[:3500]
+    return "No finished cycle found yet. Newest: %s, last output %s." % (os.path.basename(files[0]), ago(os.path.getmtime(files[0])))
 
 
 def repo_file(name, missing, limit=3500):
@@ -300,6 +313,11 @@ def parse_duration(txt):
 
 def handle(text):
     t = text.strip()
+    first, _, rest = t.partition(" ")
+    if first.startswith("@") and first[1:].lower() in TEAMS and rest.strip().startswith("/"):
+        # "@beta /last" is a command for that team, not a note: becomes "/last beta"
+        c, _, extra = rest.strip().partition(" ")
+        t = ("%s %s %s" % (c, first[1:].lower(), extra)).strip()
     low = t.lower()
     cmd, _, arg = low.partition(" ")
     cmd = cmd.split("@", 1)[0]  # /status@MyBot in groups
@@ -308,7 +326,7 @@ def handle(text):
                 "/kill  stop the sandbox now and idle\n/go  resume (also clears pause)\n/pause 2h  pause for a duration (m or h)\n"
                 "/digest  summary now\n/live  live board of what every agent is doing (/live off, /live on)\n"
                 "/explain [team]  plain-English summary of what the lab is doing right now\n/review  run the manager's review of all teams now (~$1-2)\n"
-                "/last  the agent's report from the latest cycle\n/radar  current trend radar\n/goals  the lab's goals (north-star.md)\n"
+                "/last [team]  the report from the latest finished cycle (also: @beta /last)\n/radar  current trend radar\n/goals  the lab's goals (north-star.md)\n"
                 "Any other text is queued for the agent's next cycle.")
     if cmd == "/status":
         return cmd_status()
@@ -336,7 +354,7 @@ def handle(text):
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, start_new_session=True)
         return "Manager review started (read-only, ~$1-2). The report arrives here in a few minutes."
     if cmd == "/last":
-        return cmd_last()
+        return cmd_last(arg if arg in TEAMS else None)
     if cmd == "/radar":
         return cmd_radar()
     if cmd == "/goals":
