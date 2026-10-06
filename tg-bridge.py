@@ -254,15 +254,25 @@ def cmd_last():
     return "%s is still running (or ended without a result). Last output %s." % (os.path.basename(path), ago(os.path.getmtime(path)))
 
 
-def cmd_radar():
+def repo_file(name, missing, limit=3500):
+    """A file from the lab repo's main branch, read inside the sandbox (truncated for one Telegram message)."""
     wd = workdir()
     if not wd:
         return "(workdir unknown; run setup.sh)"
     sh(["sbx", "exec", "-w", wd, SBX, "git", "fetch", "-q", "origin", "main"], 60)
-    txt = sh(["sbx", "exec", "-w", wd, SBX, "git", "show", "origin/main:radar.md"], 45)
+    txt = sh(["sbx", "exec", "-w", wd, SBX, "git", "show", "origin/main:" + name], 45)
     if not txt or "fatal:" in txt[:200]:
-        return "No radar.md on main yet."
-    return txt[:3500]
+        return missing
+    return txt[:limit]
+
+
+def cmd_radar():
+    return repo_file("radar.md", "No radar.md on main yet.")
+
+
+def cmd_goals():
+    txt = repo_file("north-star.md", "No north-star.md on main yet.", limit=12000)  # sent as several messages
+    return txt + "\n\nTo change the goals: edit north-star.md on github.com, or run ./goals.sh edit on your Mac."
 
 
 def parse_duration(txt):
@@ -293,7 +303,7 @@ def handle(text):
                 "/kill  stop the sandbox now and idle\n/go  resume (also clears pause)\n/pause 2h  pause for a duration (m or h)\n"
                 "/digest  summary now\n/live  live board of what every agent is doing (/live off, /live on)\n"
                 "/explain  plain-English summary of what the lab is doing right now\n"
-                "/last  the agent's report from the latest cycle\n/radar  current trend radar\n"
+                "/last  the agent's report from the latest cycle\n/radar  current trend radar\n/goals  the lab's goals (north-star.md)\n"
                 "Any other text is queued for the agent's next cycle.")
     if cmd == "/status":
         return cmd_status()
@@ -316,6 +326,8 @@ def handle(text):
         return cmd_last()
     if cmd == "/radar":
         return cmd_radar()
+    if cmd == "/goals":
+        return cmd_goals()
     if cmd == "/digest":
         return cmd_digest()
     if cmd == "/stop":

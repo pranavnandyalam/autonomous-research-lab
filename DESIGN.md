@@ -95,6 +95,10 @@ are the network allowlist, the token scope, the ruleset, and the host-side check
 6. **Deployed copy:** macOS blocks LaunchAgents from reading `~/Documents` ("Operation not permitted"), so the kit runs
    from `~/agent-lab-kit` (`deploy.sh`). `rsync` replaces files by rename, so a running loop keeps its old copy.
 7. **Personal values** live in the git-ignored `config.local.sh`, so a fork cannot leak them by accident.
+8. **Novelty first by default.** The example goals and the manual's fallback both aim for new contributions;
+   replication is a baseline step. Each PLAN.md opens with "What's new here" plus a literature check the
+   overseer verifies. Owners change goals by editing `north-star.md` (GitHub, `goals.sh`, read via `/goals`);
+   the agent can never edit it.
 
 ## 5. Operations
 

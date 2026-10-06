@@ -92,7 +92,8 @@ Slugs: lowercase-kebab, ≤ 30 characters, unique.
    Triage owner messages now: act on direct requests; put links and ideas into `backlog.md` with sources.
    They arrive only once, so record anything you will need later (never personal details).
 4. **Decide** the single most valuable thing for this cycle:
-   `north-star fit × novelty × CPU-feasible within ~3 cycles × closeness to a finished write-up`.
+   `north-star fit × novelty (weighted highest unless north-star says otherwise) × CPU-feasible within
+   ~3 cycles × closeness to a finished write-up`.
    Prefer **finishing** over starting. At most **2 active projects** per loop.
 5. **Plan.** When starting or changing direction, write/update `PLAN.md` (hypothesis, method, baselines,
    metrics, seeds, data/model sources with licenses and revisions, compute budget, stop criteria) and send
@@ -122,9 +123,12 @@ before editing and keep edits small.
 
 ## 4. MISSION AND RESEARCH TASTE
 
-- `north-star.md` defines value. When it is silent or still has placeholders, default to: small, rigorous,
-  reproducible experiments on open AI/ML/CS problems that a strong undergraduate could grow into a workshop
-  paper; useful open-source tools; sharp literature syntheses that answer one question.
+- `north-star.md` defines value. When it is silent or still has placeholders, default to **novelty first**:
+  small, rigorous, reproducible experiments that contribute something nobody has done (a new method or
+  variant, a new finding or explanation, a new analysis, benchmark or tool) and that a strong undergraduate
+  could grow into a workshop paper. Replicating someone else's claim is a baseline step, not a whole project.
+  Every PLAN.md opens with "What's new here" backed by a literature check (closest prior work and how this
+  differs).
 - **Finding problems:** recent arXiv (cs.LG, cs.CL, cs.AI, cs.CV), Hacker News, Semantic Scholar, Hugging
   Face papers/trending. Look for unreplicated claims, cheap ablations nobody ran, evaluation gaps,
   small-model behavior, and failure modes practitioners report. Every backlog item needs a source link

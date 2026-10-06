@@ -23,8 +23,10 @@ watch and steer it from your phone over Telegram.
 | 🛡 Safety guard | Sonnet | Gate before every commit: secrets, forbidden files, repo and remote checks |
 
 You steer it with one file you own, `north-star.md` in the lab repo (the agent may never edit it). The default
-example tells it to keep a live "radar" of the top things happening in AI and turn the best into small,
-reproducible projects. Each project ends with a short write-up: takeaway, method, results over several seeds,
+goal is **novelty**: keep a live "radar" of the top things happening in AI and turn the best into small,
+reproducible projects that contribute something nobody has done. Checking someone else's claim is only a
+baseline step, and every research plan must open with "What's new here" backed by a literature check that the
+overseer verifies. You can change all of this (see [Changing the lab's goals](#changing-the-labs-goals)). Each project ends with a short write-up: takeaway, method, results over several seeds,
 limitations, and an AI-authorship note.
 
 ## How it stays safe
@@ -100,6 +102,21 @@ bash deploy.sh                   # copies the kit to ~/agent-lab-kit (macOS bloc
 Optional Telegram: create a bot with @BotFather, put your numeric id (from @userinfobot) in `config.local.sh`, press
 Start in the bot chat, then `bash setup.sh telegram`. Turn on Telegram two-step verification.
 
+## Changing the lab's goals
+
+The goals live in `north-star.md` in your lab repo. They are yours: aim the lab at a topic, switch it to pure
+replications, ask it to build a tool, or tighten the limits. Three ways to change them:
+
+- **On GitHub** (works from your phone): open `north-star.md` in your lab repo and edit it.
+- **On your Mac:** `./goals.sh edit` opens the goals in your editor, shows exactly what changed, asks before
+  pushing, and leaves the agent a note to re-read them. `./goals.sh show` prints them; `./goals.sh set FILE`
+  swaps in a whole file.
+- **Read them on Telegram:** `/goals`.
+
+The agent reads the file at the start of every cycle, so changes apply from the next cycle. It can never edit
+the file itself (deny rules, the pre-commit hook and the safety guard all block it). Keep the "Hard limits"
+section unless you know why you are removing it.
+
 ## Daily use
 
 | Want | Mac | Phone (Telegram) |
@@ -111,6 +128,7 @@ Start in the bot chat, then `bash setup.sh telegram`. Turn on Telegram two-step 
 | Pause / stop after this cycle / resume | `agent-ctl.sh pause 2h` / `stop` / `go` | `/pause 2h` / `/stop` / `/go` |
 | Stop right now | `agent-ctl.sh kill` | `/kill` |
 | Everything off | `agent-ctl.sh off` | add a `STOP` file to the repo |
+| See / change the lab's goals | `./goals.sh show` / `./goals.sh edit` | `/goals` |
 | Tell the agent something | | any text message (read at the start of the next cycle) |
 | Make your edits to the kit live | `bash deploy.sh` | |
 
@@ -132,7 +150,7 @@ Nothing here deletes work: a stopped sandbox keeps its files, and everything pus
 
 `prompt.md` the Lead's manual · `agents.json` the subagents · `settings.json` permissions · `config.sh` settings ·
 `config.local.sh.example` your values · `render.py` fills your values into the templates · `setup.sh` setup ·
-`preflight.sh` safety tests · `agent-loop.sh` supervisor · `agent-ctl.sh` controls · `deploy.sh` make edits live ·
+`preflight.sh` safety tests · `goals.sh` read or change the goals · `agent-loop.sh` supervisor · `agent-ctl.sh` controls · `deploy.sh` make edits live ·
 `tg-bridge.py` Telegram · `activity.py` live board · `narrate.py` plain-English summary · `watch-cycle.sh` terminal
 viewer · `view.sh` all-in-one live view · `bag-guard.sh` battery safety · `uninstall.sh` remove everything · `pre-commit-hook.sh` installed in the lab
 repo · `repo-seed/` the lab repo's starting files · [DESIGN.md](DESIGN.md) why it works this way
