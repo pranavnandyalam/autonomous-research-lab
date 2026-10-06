@@ -452,12 +452,13 @@ def run():
                 msg = upd.get("message") or {}
                 frm = str((msg.get("from") or {}).get("id", ""))
                 chat = msg.get("chat") or {}
-                if frm != ALLOWED or chat.get("type") != "private":
-                    ignored += 1
-                    print("tg-bridge: ignored a message from an unauthorized sender (%d so far)" % ignored, flush=True)
-                    continue
                 text = msg.get("text")
                 if not text:
+                    continue  # service messages (e.g. the bot's own "pinned a message" notice) and media: nothing to do
+                if frm != ALLOWED or chat.get("type") != "private":
+                    ignored += 1
+                    print("tg-bridge: ignored a text message from unauthorized sender id %s in a %s chat (%d so far)"
+                          % (frm or "?", chat.get("type", "?"), ignored), flush=True)
                     continue
                 try:
                     reply = handle(text)
