@@ -105,7 +105,8 @@ PY
     say "== tmux"; tmux ls 2>/dev/null | grep '^agent-' | sed 's/^/  /' || say "  (none)"
     say "== sandbox"; sbx ls 2>/dev/null | head -5 | sed 's/^/  /'
     say "== mac"; pmset -g 2>/dev/null | grep -i SleepDisabled | sed 's/^/  /'; df -h / | awk 'NR==2{print "  free disk: " $4}'
-    n=$(cat "$STATE_DIR/cycles-$(date +%Y-%m-%d).count" 2>/dev/null || echo 0); say "  cycles today: $n / $MAX_CYCLES_PER_DAY"
+    for id in ${TEAMS:-main}; do sfx=""; [ "$id" = main ] || sfx="-$id"
+      n=$(cat "$STATE_DIR/cycles-$(date +%Y-%m-%d)$sfx.count" 2>/dev/null || echo 0); say "  cycles today ($id): $n / $MAX_CYCLES_PER_DAY"; done
     say "== last log lines"; for f in "$STATE_DIR"/loop-*.log; do [ -f "$f" ] && tail -n 4 "$f" | sed 's/^/  /'; done ;;
   logs)  n="${1:-50}"; tail -n "$n" -f "$STATE_DIR"/loop-*.log ;;
   attach) case "${1:-loop}" in tg) tmux attach -t =agent-tg ;; loop|main) tmux attach -t =agent-loop ;; *) tmux attach -t "=$(session_name "$1")" ;; esac ;;

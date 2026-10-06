@@ -505,6 +505,16 @@ EOF
   if [ -n "$woke" ] && [ "$woke" -gt "$t0" ] && { [ "$CLASS" = "FAIL" ] || [ "$CLASS" = "TRANSIENT" ]; }; then
     NOTE="interrupted by sleep (was $CLASS): ${NOTE:-}"; CLASS="INTERRUPTED"
   fi
+  # the manual forbids processes outliving the cycle; enforce it (a timed-out cycle can leave a long job running).
+  # Only processes whose working directory is inside THIS team's clone are touched (exact path prefix).
+  strays=$(hto 60 sbx exec "$SBX_NAME" bash -c 'for p in /proc/[0-9]*; do c=$(readlink "$p/cwd" 2>/dev/null) || continue
+      case "$c" in "$1"|"$1"/*) n=${p#/proc/}; [ "$n" = "$$" ] && continue
+        case "$(tr "\0" " " < "$p/cmdline" 2>/dev/null)" in git\ *|/usr/bin/git\ *) continue ;; esac; echo "$n $(tr "\0\n\r" "   " < "$p/cmdline" | cut -c1-80)" ;; esac; done' _ "$WORKDIR" </dev/null 2>/dev/null)
+  if [ -n "$strays" ]; then
+    log "killing processes left over from the cycle: $(printf '%s' "$strays" | tr '\n' ';' | cut -c1-400)"
+    pids=$(printf '%s\n' "$strays" | awk '$1 ~ /^[0-9]+$/ && $1 > 1 {print $1}' | tr '\n' ' ')   # numbers only, never 0/1
+    [ -n "$pids" ] && hto 30 sbx exec "$SBX_NAME" kill -TERM $pids </dev/null >/dev/null 2>&1
+  fi
   log "cycle $cyc finished: class=$CLASS marker=${MARKER:--} project=${PROJECT:--} pushed=${PUSHED:--} turns=${TURNS:--} cost=${COST:--} rc=$rc dur=${dur}s note=${NOTE:--}"
   if [ "${TG_CYCLE_UPDATES:-1}" = "1" ]; then
     notify "cycle-$stamp" 0 "cycle $cyc/$MAX_CYCLES_PER_DAY: $CLASS${MARKER:+ ($MARKER)} | project=${PROJECT:--} | pushed=${PUSHED:--} | ${TURNS:-?} turns | $((dur / 60))m${NOTE:+
