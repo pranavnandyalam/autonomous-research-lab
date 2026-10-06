@@ -442,11 +442,15 @@ while :; do
 
   qh=$(printf '%s\n' "$pre" | sed -n 's/^QHASH://p' | head -1)
   if [ -n "$qh" ]; then
-    if [ -f "$STATE_DIR/qhash" ] && [ "$qh" != "$(cat "$STATE_DIR/qhash")" ]; then
-      tail_txt=$(hto 60 sbx exec -w "$WORKDIR" "$SBX_NAME" bash -c 'git show origin/main:questions.md 2>/dev/null | tail -n 12' 2>/dev/null | tr '\n' ' ' | cut -c1-600)
-      notify "questions" 600 "questions.md changed: $tail_txt"
+    # per-team hash: each clone fetches origin at its own time, so a shared file flip-flopped and re-alerted
+    if [ -f "$STATE_DIR/qhash.$LOOP_ID" ] && [ "$qh" != "$(cat "$STATE_DIR/qhash.$LOOP_ID")" ]; then
+      open_q=$(hto 60 sbx exec -w "$WORKDIR" "$SBX_NAME" bash -c 'git show origin/main:questions.md 2>/dev/null | grep "^### .*\[OPEN\]" | sed "s/^### //"' 2>/dev/null | cut -c1-160)
+      [ -n "$open_q" ] || open_q="none (all answered)"
+      # keyed on the open list, shared across teams: the same set of open questions alerts once a day
+      notify "questions-$(printf '%s' "$open_q" | cksum | cut -d' ' -f1)" 86400 "questions.md changed. Open questions:
+$open_q"
     fi
-    echo "$qh" > "$STATE_DIR/qhash"
+    echo "$qh" > "$STATE_DIR/qhash.$LOOP_ID"
   fi
 
   lp=$(printf '%s\n' "$pre" | sed -n 's/^LAST_PUSH://p' | head -1)
