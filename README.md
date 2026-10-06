@@ -105,7 +105,7 @@ Start in the bot chat, then `bash setup.sh telegram`. Turn on Telegram two-step 
 | Want | Mac | Phone (Telegram) |
 |---|---|---|
 | Status | `~/agent-lab-kit/agent-ctl.sh status` | `/status` |
-| Watch a cycle live | `./watch-cycle.sh` | pinned live board, `/live` |
+| Watch everything live | `./view.sh` (tmux: every step, the board, the log; reopen with `tmux attach -t agent-view`) | pinned live board, `/live` |
 | Plain-English summary | | `/explain` (also added to the board when each cycle ends) |
 | Last cycle's report, trend radar | `python3 activity.py` | `/last`, `/radar` |
 | Pause / stop after this cycle / resume | `agent-ctl.sh pause 2h` / `stop` / `go` | `/pause 2h` / `/stop` / `/go` |
@@ -134,7 +134,7 @@ Nothing here deletes work: a stopped sandbox keeps its files, and everything pus
 `config.local.sh.example` your values · `render.py` fills your values into the templates · `setup.sh` setup ·
 `preflight.sh` safety tests · `agent-loop.sh` supervisor · `agent-ctl.sh` controls · `deploy.sh` make edits live ·
 `tg-bridge.py` Telegram · `activity.py` live board · `narrate.py` plain-English summary · `watch-cycle.sh` terminal
-viewer · `bag-guard.sh` battery safety · `uninstall.sh` remove everything · `pre-commit-hook.sh` installed in the lab
+viewer · `view.sh` all-in-one live view · `bag-guard.sh` battery safety · `uninstall.sh` remove everything · `pre-commit-hook.sh` installed in the lab
 repo · `repo-seed/` the lab repo's starting files · [DESIGN.md](DESIGN.md) why it works this way
 
 ## License and disclaimer
