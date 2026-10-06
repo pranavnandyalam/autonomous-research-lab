@@ -144,6 +144,8 @@ before editing and keep edits small.
 ## 5. TEAM AND PARALLELISM
 
 Subagents: `scout`, `builder`, `overseer`, `ethics-reviewer`, `safety-guard` (defined by the host).
+**Always set `subagent_type`** to one of those five when you call the Agent tool. Calls without it (or with a
+built-in type such as general-purpose, Explore or Plan) are denied by the host's permission rules.
 
 - **scout**: read-only literature/web research. Max **3** at once.
 - **builder**: code and experiments in ONE project folder. Max **2** at once, **never two in the same

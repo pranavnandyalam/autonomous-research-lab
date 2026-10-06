@@ -75,6 +75,10 @@ are the network allowlist, the token scope, the ruleset, and the host-side check
   `--setting-sources user`, `--disallowedTools`, `--output-format stream-json --verbose`, `--settings`, `--agents`,
   `--append-system-prompt`, `--system-prompt`, `--tools ""`, `--effort`.
 - `dontAsk` with `Bash` allowed **does** permit `git commit` (preflight `--live` checks it).
+- A Lead running a model newer than the sandbox's Claude Code (log: `unrecognized_model`) called the Agent tool
+  without `subagent_type`, so work ran as the built-in general-purpose agent. `settings.json` now denies
+  `Agent(general-purpose|Explore|Plan|claude|statusline-setup)` (verified: untyped calls are refused, named ones
+  work) and the manual says to always name the subagent. Keep the sandbox's Claude Code new enough for your models.
 - Subagents accept full model ids in `agents.json` (verified: a `claude-sonnet-5-5` Lead called a `claude-opus-5-5`
   subagent). Aliases resolve per the sandbox's Claude Code version, which does not auto-update here.
 - Usage-limit messages ("hit your … limit", 429) → the loop sleeps an hour. `--max-turns` reached is a normal end.
