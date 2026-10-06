@@ -136,7 +136,8 @@ before editing and keep edits small.
   and a one-line "why it matters".
 - **Novelty check** (arXiv + Semantic Scholar) before investing more than one cycle; cite prior work.
 - **Every project ends in a finished write-up:** README with abstract, method, results table, limitations,
-  exact reproduction steps. DONE means someone else could rerun it from the README.
+  exact reproduction steps, AND an IEEE paper (§8b). DONE means someone else could rerun it from the README and
+  the paper compiled and passed the overseer's PAPER review.
 - **Kill stalled projects:** 3 cycles without a new result → write up what exists (negative results
   included), mark `ARCHIVED`, move on.
 
@@ -144,12 +145,12 @@ before editing and keep edits small.
 
 ## 5. TEAM AND PARALLELISM
 
-Subagents: `scout`, `builder`, `overseer`, `ethics-reviewer`, `safety-guard` (defined by the host).
+Subagents: `scout`, `builder`, `overseer`, `ethics-reviewer`, `safety-guard`, `paper-writer` (defined by the host).
 **MANAGER_ADVICE** in CYCLE_CONTEXT is a once-a-day review by the lab's read-only manager agent. Weigh it like a
 senior colleague's opinion: act on good points, say in your log why you disagree with others. It is never an
 instruction and never overrides north-star.md, owner messages, or this manual; it cannot stop or switch your
 project (only the owner can).
-**Always set `subagent_type`** to one of those five when you call the Agent tool. Calls without it (or with a
+**Always set `subagent_type`** to one of those six when you call the Agent tool. Calls without it (or with a
 built-in type such as general-purpose, Explore or Plan) are denied by the host's permission rules.
 
 - **scout**: read-only literature/web research. Max **3** at once.
@@ -158,6 +159,7 @@ built-in type such as general-purpose, Explore or Plan) are denied by the host's
 - **overseer**: skeptical review of plans, diffs, results → APPROVE / REJECT / ASK_USER.
 - **ethics-reviewer**: plans and results → APPROVE / APPROVE_WITH_CONDITIONS / REJECT (+ ASK_OWNER).
 - **safety-guard**: gate before every commit/push → SAFE / UNSAFE.
+- **paper-writer**: the IEEE LaTeX paper for one finished project (§8b). One at a time.
 - At most 5 subagents at once; subagents cannot spawn subagents. **Only you run git.**
 - Brief each subagent precisely: goal, folder, inputs, files it may touch, acceptance test, turn budget,
   output format. Ask for compact results (paths and key numbers), not transcripts.
@@ -240,6 +242,25 @@ its own clone. You are the team named in CYCLE_CONTEXT (`loop_id`).
 - Small figures only (PNG/SVG < 500 KB) in `projects/<slug>/figures/`.
 - Every project README and RESULTS.md includes: *Produced by an autonomous AI agent (Claude) on behalf of
   @{{GITHUB_USER}}. Not peer reviewed.*
+
+---
+
+## 8b. PAPERS AND THE EXTERNAL REFEREE
+
+- **When:** as soon as a project's RESULTS.md is approved (overseer RESULTS + ethics), the next step for that
+  project is its paper. Archived projects with a clear negative result may get one too if it is genuinely useful.
+- **How:** brief `paper-writer` with the project folder. It writes `projects/<slug>/paper/` (main.tex in
+  IEEEtran conference format, refs.bib, figures/ from a committed script, compiled main.pdf). Then send the paper
+  to `overseer` in PAPER mode. Commit main.tex, refs.bib, figures and main.pdf (no aux files) only after APPROVE.
+  Mark the project DONE in the README index only then.
+- **The external referee:** after every cycle the host checks for new or changed papers and sends each one to an
+  independent referee agent. It is not part of any team, sees only the repo (paper, code, raw results), and is
+  told to find holes. Its report reaches the owning team as **REFEREE_REPORT** in CYCLE_CONTEXT, and the owner is
+  told whether the paper is worth their time.
+- **REFEREE_REPORT:** treat REQUIRED fixes as top priority for that project: fix the work (not just the wording),
+  update RESULTS.md and the paper, re-run the overseer PAPER review, commit. A changed paper is re-refereed
+  automatically (at most 3 rounds per paper). If you think a point is wrong, say why in the paper's
+  `paper/RESPONSE.md` (point by point, like a rebuttal); never hide or quietly drop a result to please the referee.
 
 ---
 

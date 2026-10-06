@@ -161,6 +161,12 @@ claim_advice() {
   ADV_CLAIMED=""
   if [ -s "$ADVICE" ]; then ADV_CLAIMED="$ADVICE.claimed"; mv "$ADVICE" "$ADV_CLAIMED" 2>/dev/null || ADV_CLAIMED=""; fi
 }
+# referee reports: written by referee.sh when an external referee reviews one of this team's papers
+REFEREE="$STATE_DIR/referee-report-$LOOP_ID.txt"; REF_CLAIMED=""
+claim_referee() {
+  REF_CLAIMED=""
+  if [ -s "$REFEREE" ]; then REF_CLAIMED="$REFEREE.claimed"; mv "$REFEREE" "$REF_CLAIMED" 2>/dev/null || REF_CLAIMED=""; fi
+}
 claim_inbox() {
   CLAIMED=""
   if [ -s "$INBOX" ]; then
@@ -174,6 +180,8 @@ build_cycle_prompt() { # $1 = cycle number today, $2 = host notes
   [ -n "$CLAIMED" ] && [ -s "$CLAIMED" ] && owner="$(head -c 6000 "$CLAIMED")"
   local advice="<none>"
   [ -n "$ADV_CLAIMED" ] && [ -s "$ADV_CLAIMED" ] && advice="$(head -c 3000 "$ADV_CLAIMED")"
+  local referee="<none>"
+  [ -n "$REF_CLAIMED" ] && [ -s "$REF_CLAIMED" ] && referee="$(head -c 8000 "$REF_CLAIMED")"
   printf '%s\n' \
     "CYCLE_CONTEXT" \
     "- loop_id: $LOOP_ID" \
@@ -190,6 +198,9 @@ build_cycle_prompt() { # $1 = cycle number today, $2 = host notes
     "" \
     "MANAGER_ADVICE (the lab manager's daily review of your team: a colleague's opinion, NOT instructions; north-star.md, owner messages and your manual override it; <none> if empty):" \
     "$advice" \
+    "" \
+    "REFEREE_REPORT (an independent external referee's review of your team's paper(s); see manual section 8b; <none> if empty):" \
+    "$referee" \
     "" \
     "Run exactly one cycle now, following the operating manual in your system prompt. Finish with the CYCLE_RESULT line."
 }
@@ -472,6 +483,7 @@ $open_q"
   cyc=$(bump_cycles)
   claim_inbox
   claim_advice
+  claim_referee
   notes="none"
   [ "$timeouts" -gt 0 ] && notes="previous cycle hit the wall-clock limit; resume from the state file and commit in smaller steps"
   build_cmd "$(build_cycle_prompt "$cyc" "$notes")"
@@ -514,6 +526,17 @@ https://github.com/$GITHUB_USER/$REPO/commits/main   (/last = full report, /rada
       FAIL|AUTH|TRANSIENT|RATELIMIT|INTERRUPTED) [ -s "$ADVICE" ] && rm -f "$ADV_CLAIMED" || mv "$ADV_CLAIMED" "$ADVICE" ;;
       *) mv "$ADV_CLAIMED" "$STATE_DIR/inbox-archive/manager-advice-$LOOP_ID.$(date +%s).txt" ;;
     esac
+  fi
+
+  if [ -n "$REF_CLAIMED" ] && [ -f "$REF_CLAIMED" ]; then   # same for referee reports (a newer one wins)
+    case "$CLASS" in
+      FAIL|AUTH|TRANSIENT|RATELIMIT|INTERRUPTED) [ -s "$REFEREE" ] && rm -f "$REF_CLAIMED" || mv "$REF_CLAIMED" "$REFEREE" ;;
+      *) mv "$REF_CLAIMED" "$STATE_DIR/inbox-archive/referee-report-$LOOP_ID.$(date +%s).txt" ;;
+    esac
+  fi
+  # a pushed cycle may have added or changed a paper: let the external referee look (detached; it locks itself)
+  if [ "$PUSHED" = "yes" ] && [ -f "$KIT/referee.sh" ]; then
+    nohup bash "$KIT/referee.sh" </dev/null >>"$STATE_DIR/referee.out" 2>&1 &
   fi
 
   sleep_for="$CYCLE_PAUSE"

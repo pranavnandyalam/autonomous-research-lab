@@ -16,6 +16,7 @@
 #   launchd    LaunchAgent that restores the agent after login/reboot if you had it ON
 #   team       (not in the default run) TEAM=<id> bash setup.sh team: give another agent team its own clone
 #   manager    (not in the default run) daily read-only manager review: its own clone + LaunchAgent at MANAGER_HOUR:MINUTE
+#   referee    (not in the default run) external paper referee: its own clone (referee.sh runs after pushed cycles)
 #   bagguard   (not in the default run) LaunchAgent that turns lid-closed mode off on battery; needs Amphetamine Power Protect
 #   pmset      keep the Mac awake with the lid closed (sudo)
 #   summary    what only you can do
@@ -253,6 +254,19 @@ step_team() {
   info "start it: ~/agent-lab-kit/agent-ctl.sh on   (or: agent-ctl.sh on $TEAM)   | watch it: ./view.sh $TEAM"
 }
 
+step_referee() {
+  hdr "external paper referee (read-only, runs after pushed cycles)"
+  [ "$DRYRUN" -eq 1 ] && { printf '  [dry]  would clone ~/%s-referee in the VM\n' "$REPO"; return 0; }
+  local home wd; home=$(vmx bash -c 'echo $HOME' </dev/null | tr -d '\r'); [ -n "$home" ] || die "could not read the VM home directory"
+  wd="$home/$REPO-referee"
+  if vmx test -d "$wd/.git" </dev/null; then ok "referee clone exists at $wd"
+  else vmx git clone -q "https://github.com/$GITHUB_USER/$REPO.git" "$wd" </dev/null && ok "cloned to $wd" || die "clone failed"; fi
+  echo "$wd" > "$STATE_DIR/workdir-referee"
+  vmx bash -c 'command -v latexmk >/dev/null && kpsewhich IEEEtran.cls >/dev/null' </dev/null && ok "LaTeX with IEEEtran present in the VM" \
+    || warn "no LaTeX in the VM: papers cannot compile. Allow ports.ubuntu.com briefly, then: sbx exec $SBX_NAME sudo apt-get install -y --no-install-recommends latexmk texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended texlive-publishers texlive-science lmodern (and remove the allow rule)"
+  info "papers are reviewed automatically; review one now with: bash $KIT/referee.sh --force <slug>"
+}
+
 step_manager() {
   hdr "manager review (daily at ${MANAGER_HOUR}:${MANAGER_MINUTE}, read-only)"
   local label="com.agentlab.manager" plist="$HOME/Library/LaunchAgents/com.agentlab.manager.plist"
@@ -330,7 +344,7 @@ EOF
 
 for s in $STEPS; do
   case "$s" in
-    check|sbx|policy|vm|secrets|identity|clone|seed|telegram|launchd|bagguard|team|manager|pmset|summary) "step_$s" ;;
+    check|sbx|policy|vm|secrets|identity|clone|seed|telegram|launchd|bagguard|team|manager|referee|pmset|summary) "step_$s" ;;
     *) die "unknown step '$s'" ;;
   esac
 done

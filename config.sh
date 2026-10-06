@@ -48,6 +48,8 @@ export MAX_CYCLES_PER_DAY="${MAX_CYCLES_PER_DAY:-6}"      # duty-cycle cap PER T
 export TEAMS="${TEAMS:-main}"                             # teams started by 'agent-ctl.sh on'; add one with: TEAM=<id> bash setup.sh team, then list it here
 export MANAGER_MODEL="${MANAGER_MODEL:-opus}"                # daily read-only manager review of all teams (manager.sh; about $0.25-2 per review)
 export MANAGER_HOUR="${MANAGER_HOUR:-19}"; export MANAGER_MINUTE="${MANAGER_MINUTE:-30}"   # when it runs (setup.sh manager)
+export REFEREE_MODEL="${REFEREE_MODEL:-claude-opus-5-5}"      # external referee for finished papers (referee.sh, ~$1-3 per paper)
+export REFEREE_MAX_ROUNDS="${REFEREE_MAX_ROUNDS:-3}"            # re-reviews per paper after the team revises it
 export FAIL_LIMIT="${FAIL_LIMIT:-5}"                      # consecutive hard failures before the loop halts itself (resume with /go)
 export MAX_SUBAGENTS="${MAX_SUBAGENTS:-5}"                # CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS (3 scouts + 2 builders)
 export MIN_HOST_FREE_GB="${MIN_HOST_FREE_GB:-150}"        # alert + pause below this much free space on the Mac

@@ -24,17 +24,19 @@ flowchart LR
     LOOPS["Supervisor loop per team<br/>agent-loop.sh: time limits, daily caps,<br/>tripwires, history audit, alerts"]
     BRIDGE["Telegram bridge<br/>tg-bridge.py"]
     MGR["Daily manager review<br/>manager.sh"]
+    REFS["Paper referee<br/>referee.sh, after pushed cycles"]
     JOBS["Background jobs<br/>restore after reboot · bag guard"]
   end
 
   subgraph VM["🔒 Docker Sandboxes microVM: own kernel, cannot see your files"]
     subgraph TEAMA["Team main, own clone"]
-      LA["🧠 Lead"] --> SA["🔍 Scouts · 🛠 Builder · 🧐 Overseer<br/>⚖️ Ethics reviewer · 🛡 Safety guard"]
+      LA["🧠 Lead"] --> SA["🔍 Scouts · 🛠 Builder · 🧐 Overseer<br/>⚖️ Ethics reviewer · 🛡 Safety guard · 📝 Paper writer"]
     end
     subgraph TEAMB["Team beta, own clone (optional)"]
-      LB["🧠 Lead"] --> SB["Same five subagents"]
+      LB["🧠 Lead"] --> SB["Same six subagents"]
     end
     MR["📋 Manager<br/>read-only clone"]
+    RF["🔎 Referee<br/>sees one project copy only"]
   end
 
   PROXY{{"Host proxy<br/>deny-all network + allowlist<br/>holds the GitHub token"}}
@@ -45,6 +47,9 @@ flowchart LR
   LOOPS -- "runs one cycle at a time" --> TEAMA
   LOOPS -- "runs one cycle at a time" --> TEAMB
   MGR -- "once a day" --> MR
+  REFS -- "new or changed paper" --> RF
+  RF -.-> PROXY
+  REFS -- "verdict, worth your time?" --> BRIDGE
   TEAMA -.-> PROXY
   TEAMB -.-> PROXY
   MR -.-> PROXY
@@ -73,13 +78,14 @@ AI): it starts each cycle, enforces the limits, and alerts you. You steer the la
 | 🧐 Overseer | Opus | Skeptical reviewer of every plan, diff and result; can reject |
 | ⚖️ Ethics reviewer | Sonnet | Harm, privacy, licensing, honesty checks |
 | 🛡 Safety guard | Sonnet | Gate before every commit: secrets, forbidden files, repo and remote checks |
+| 📝 Paper writer | Opus | Turns a finished project into an IEEE conference paper (LaTeX, compiled PDF) |
 
 You steer it with one file you own, `north-star.md` in the lab repo (the agent may never edit it). The default
 goal is **novelty**: keep a live "radar" of the top things happening in AI and turn the best into small,
 reproducible projects that contribute something nobody has done. Checking someone else's claim is only a
 baseline step, and every research plan must open with "What's new here" backed by a literature check that the
-overseer verifies. You can change all of this (see [Changing the lab's goals](#changing-the-labs-goals)). Each project ends with a short write-up: takeaway, method, results over several seeds,
-limitations, and an AI-authorship note.
+overseer verifies. You can change all of this (see [Changing the lab's goals](#changing-the-labs-goals)). Each project ends with a write-up (takeaway, method, results over several seeds, limitations, an AI-authorship
+note) and an IEEE-format paper that an independent referee tries to tear apart (see [Papers and the referee](#papers-and-the-referee)).
 
 ## How it stays safe
 
@@ -217,6 +223,34 @@ Telegram `/review` runs one now. It is deliberately powerless: it can only read 
 advice reaches the teams as a labelled colleague's opinion (never as your instructions), and stopping or switching a
 project stays your call. A review costs roughly $0.25-2 with Opus.
 
+## Papers and the referee
+
+When a project is finished, its team's **paper writer** produces `projects/<slug>/paper/`: an IEEE conference
+paper (`main.tex` in IEEEtran, `refs.bib` with fetched and verified references, figures made by a committed script,
+and the compiled `main.pdf`). The team's overseer checks it in PAPER mode before it is committed.
+
+After every pushed cycle the host looks for new or changed papers and sends each one to an **external referee**
+(`referee.sh` + `referee.md`, Opus by default). It is built to have no stake in the work:
+
+- it runs from its own clone, with a fresh copy of **only that project** as its working directory; reads of every
+  lab clone are denied, so the team's notes, logs and reviewer verdicts cannot bias it;
+- it is told to find holes: trace every headline number to the raw data, look for leakage, cherry-picking and
+  missing baselines, compare the paper with its pre-registered PLAN.md, search arXiv and Semantic Scholar for prior
+  work the paper missed, and fetch every reference (a fabricated one is fatal);
+- it can only read and search the web (no shell, no writes).
+
+You get a prominent Telegram message only when it judges the paper **worth your time** (publishable as is or with
+fixes, no fatal hole, real novelty), with a link to the PDF; otherwise one line. Its required fixes go back to the
+team as `REFEREE_REPORT`, the team revises, and a changed paper is re-refereed (at most `REFEREE_MAX_ROUNDS`, 3).
+
+```bash
+bash ~/agent-lab-kit/setup.sh referee            # its own read-only clone (once)
+bash ~/agent-lab-kit/referee.sh --force <slug>   # review one paper now
+```
+The sandbox needs LaTeX for papers to compile: allow `ports.ubuntu.com` briefly, install `latexmk
+texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended texlive-publishers texlive-science lmodern`
+with apt inside the sandbox, then remove the allow rule (`setup.sh referee` checks for it). A review costs roughly $1-3.
+
 ## Laptop or desk (`POWER_MODE`)
 
 - **portable** (default): closing the lid sleeps the Mac; the sandbox freezes and resumes when you open it (time
@@ -234,7 +268,7 @@ project stays your call. A review costs roughly $0.25-2 with Opus.
 `config.local.sh.example` your values · `render.py` fills your values into the templates · `setup.sh` setup ·
 `preflight.sh` safety tests · `goals.sh` read or change the goals · `agent-loop.sh` supervisor · `agent-ctl.sh` controls · `deploy.sh` make edits live ·
 `tg-bridge.py` Telegram · `activity.py` live board · `narrate.py` plain-English summary · `watch-cycle.sh` terminal
-viewer · `view.sh` all-in-one live view · `bag-guard.sh` battery safety · `uninstall.sh` remove everything · `pre-commit-hook.sh` installed in the lab
+viewer · `view.sh` all-in-one live view · `bag-guard.sh` battery safety · `referee.sh`/`referee.md` paper referee · `uninstall.sh` remove everything · `pre-commit-hook.sh` installed in the lab
 repo · `repo-seed/` the lab repo's starting files · [DESIGN.md](DESIGN.md) why it works this way
 
 ## License and disclaimer

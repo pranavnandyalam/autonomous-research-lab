@@ -15,9 +15,9 @@ from datetime import datetime
 from urllib.parse import urlparse
 
 STATE = os.path.expanduser(os.environ.get("STATE_DIR", "~/.agent-lab"))
-ICONS = {"lead": "🧠", "scout": "🔍", "builder": "🛠", "overseer": "🧐", "ethics-reviewer": "⚖️", "safety-guard": "🛡"}
+ICONS = {"lead": "🧠", "scout": "🔍", "builder": "🛠", "overseer": "🧐", "ethics-reviewer": "⚖️", "safety-guard": "🛡", "paper-writer": "📝"}
 NAMES = {"lead": "Lead", "scout": "Scout", "builder": "Builder", "overseer": "Overseer",
-         "ethics-reviewer": "Ethics", "safety-guard": "Safety guard"}
+         "ethics-reviewer": "Ethics", "safety-guard": "Safety guard", "paper-writer": "Paper writer"}
 MAX_AGENTS = 8
 MAX_FEED = 8
 MAX_LINE = 90
