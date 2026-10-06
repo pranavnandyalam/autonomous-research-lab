@@ -21,10 +21,12 @@ NAMES = {"lead": "Lead", "scout": "Scout", "builder": "Builder", "overseer": "Ov
 MAX_AGENTS = 8
 MAX_FEED = 8
 MAX_LINE = 90
+# agent-written text can carry terminal control codes (e.g. ESC ]52 rewrites the clipboard); strip them before printing
+_CTRL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")
 
 
 def clip(text, n=MAX_LINE):
-    s = " ".join(str(text or "").split())
+    s = " ".join(_CTRL.sub(" ", str(text or "")).split())
     return s if len(s) <= n else s[: n - 1] + "…"
 
 
