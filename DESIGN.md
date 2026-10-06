@@ -59,6 +59,8 @@ are the network allowlist, the token scope, the ruleset, and the host-side check
 - `sbx version` (not `--version`). `sbx stop` keeps state; `sbx rm` deletes the sandbox and its sandbox-scoped secrets.
 - Policy: `sbx policy init deny-all`, `sbx policy allow|deny network "a.com,b.com"`, `sbx policy ls|check|log|reset`.
   Deny beats allow. `--method`/`--path` exist for HTTP rules.
+- `*.hf.co` matches one label only: Hugging Face's Xet storage serves file bytes from `us.aws.cdn.hf.co` and
+  `cas-server.xethub.hf.co`, so both are allow-listed explicitly (found when every model download returned 403).
 - **The built-in `claude` agent kit adds a per-sandbox allow for `mcp-proxy.anthropic.com:443`** (plus a few claude.com
   hosts used by `/login`). The kit's explicit deny wins; never remove `DENY_DOMAINS`.
 - GitHub secret: `sbx secret set github --sandbox agent-lab`. The VM sees `GH_TOKEN` as a sentinel that the host proxy
