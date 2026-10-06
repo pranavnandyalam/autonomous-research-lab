@@ -210,7 +210,11 @@ build_cmd() { # $1 = cycle prompt
         -e "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS=$MAX_SUBAGENTS"
         -e "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1"
         -e "ENABLE_CLAUDEAI_MCP_SERVERS=false"
-        -e "CLAUDE_CODE_DISABLE_AUTO_MEMORY=1" )
+        -e "CLAUDE_CODE_DISABLE_AUTO_MEMORY=1"
+        -e "HF_HOME=/home/agent/models/hf_cache"
+        -e "UV_TORCH_BACKEND=cpu"
+        -e "PIP_NO_CACHE_DIR=1" )
+  # disk: one shared model cache; CPU-only torch (the default wheel drags ~4 GB of unusable CUDA libs); no pip cache
   [ -n "$base" ] && CMD+=( -e "ANTHROPIC_BASE_URL=$base" )
   # NOTE: the prompt comes right after -p and --disallowedTools is followed by another flag, because
   # --disallowedTools is variadic and would otherwise swallow a trailing positional prompt.

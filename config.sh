@@ -78,7 +78,7 @@ export ALLOW_ANTHROPIC="${ALLOW_ANTHROPIC:-api.anthropic.com}"
 export ALLOW_GITHUB="${ALLOW_GITHUB:-github.com,api.github.com,codeload.github.com,raw.githubusercontent.com,objects.githubusercontent.com}"
 #   Hugging Face's Xet storage serves file bytes from us.aws.cdn.hf.co and cas-server.xethub.hf.co ('*.hf.co' matches one label only).
 export ALLOW_RESEARCH="${ALLOW_RESEARCH:-arxiv.org,export.arxiv.org,huggingface.co,*.huggingface.co,hf.co,*.hf.co,us.aws.cdn.hf.co,cas-server.xethub.hf.co,api.semanticscholar.org,hn.algolia.com,hacker-news.firebaseio.com}"
-export ALLOW_PACKAGES="${ALLOW_PACKAGES:-pypi.org,files.pythonhosted.org,registry.npmjs.org}"
+export ALLOW_PACKAGES="${ALLOW_PACKAGES:-pypi.org,files.pythonhosted.org,registry.npmjs.org,download.pytorch.org,download-r2.pytorch.org}"
 # Always denied on purpose (the connector proxy). Kept explicit so a typo in an allow rule can never open it.
 export DENY_DOMAINS="${DENY_DOMAINS:-mcp-proxy.anthropic.com}"
 

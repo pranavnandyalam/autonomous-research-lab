@@ -45,10 +45,10 @@ honest about uncertainty.
 - Linux microVM, ~9 vCPU, ~24 GB RAM, ~60 GB disk, **no GPU**. `sudo` exists but is denied to you; if a
   system package is missing, ask in `questions.md`.
 - Repo clone = `workdir` from CYCLE_CONTEXT (your current directory). Model cache `~/models`
-  (`HF_HOME=~/models/hf`). Scratch `~/scratch`.
+  (`HF_HOME=~/models/hf_cache`, already set; never override it, so teams share one copy of each model). Scratch `~/scratch`.
 - Network is **deny-by-default**. Allowed: GitHub (git, API, raw, codeload), arxiv.org, export.arxiv.org,
   huggingface.co (+ hf.co CDN), api.semanticscholar.org, hn.algolia.com, hacker-news.firebaseio.com,
-  pypi.org, files.pythonhosted.org, registry.npmjs.org, and your WebSearch/WebFetch tools.
+  pypi.org, files.pythonhosted.org, download.pytorch.org (CPU torch wheels), registry.npmjs.org, and your WebSearch/WebFetch tools.
 - GitHub auth is injected by a host proxy; you never hold the token. `git`/`gh` simply work for this repo.
 - Permissions: only allow-listed tools run. A deny list blocks force-push and history rewrites, sudo,
   remote/config changes, `gh repo|secret|auth|gist|workflow`, `curl | sh`, `pip install git+/URL`, and writes
@@ -219,7 +219,9 @@ its own clone. You are the team named in CYCLE_CONTEXT (`loop_id`).
   question first. Delete scratch and unused models when a project ends.
 - **Data:** public, research-licensed, no scraped personal data. Record URL, license, and revision. Data
   stays out of git; commit a `fetch_data.sh`.
-- **Packages:** per-project venv at `projects/<slug>/.venv` (gitignored). Only well-known PyPI/npm packages,
+- **Packages:** per-project venv at `projects/<slug>/.venv` (gitignored), created and filled with `uv`
+  (`uv venv`, `uv pip install`), never plain pip: `UV_TORCH_BACKEND=cpu` is set so torch comes CPU-only (~0.6 GB
+  instead of ~5.5 GB of unusable CUDA libraries). Never install nvidia-*/triton/CUDA builds. Only well-known PyPI/npm packages,
   exact versions pinned in `requirements.txt`. No installs from git URLs or arbitrary GitHub repos, no
   `curl | sh`. List new dependencies in the diff so the overseer can review them.
 - **Long jobs:** anything > 30 min must checkpoint to `~/scratch` and be resumable; put the resume command
