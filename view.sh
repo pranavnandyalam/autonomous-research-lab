@@ -32,11 +32,11 @@ case "$mode" in
 esac
 
 loop="$mode"; s="agent-view"; [ "$loop" = "main" ] || s="agent-view-$loop"
-if ! tmux has-session -t "$s" 2>/dev/null; then
+if ! tmux has-session -t "=$s" 2>/dev/null; then
   tmux new-session -d -s "$s" -x 220 -y 55 "exec bash '$KIT/view.sh' --steps $loop"
   tmux split-window -h -l 45% -t "$s" "exec bash '$KIT/view.sh' --board $loop"
   tmux split-window -v -l 30% -t "$s:0.1" "tail -n 30 -F '$STATE_DIR/loop-$loop.log' | LC_ALL=C tr -d '\\000-\\010\\013-\\037\\177'"
-  tmux set -t "$s" mouse on >/dev/null
+  tmux set -t "=$s" mouse on >/dev/null
 fi
-[ -t 1 ] && exec tmux attach -t "$s"
+[ -t 1 ] && exec tmux attach -t "=$s"
 echo "view ready: tmux attach -t $s"

@@ -18,7 +18,7 @@ ask()  { [ "$DRYRUN" -eq 1 ] && { printf '  [dry]  would ask: %s\n' "$1"; return
          local r; printf '  ?  %s [y/N] ' "$1"; read -r r; case "$r" in y|Y|yes) return 0 ;; *) return 1 ;; esac; }
 
 hdr "1. stop everything"
-for s in $(tmux ls -F '#S' 2>/dev/null | grep '^agent-'); do run tmux kill-session -t "$s" && say "  stopped tmux session $s"; done
+for s in $(tmux ls -F '#S' 2>/dev/null | grep '^agent-'); do run tmux kill-session -t "=$s" && say "  stopped tmux session $s"; done
 rm -f "$STATE_DIR/ENABLED" 2>/dev/null
 if pmset -g 2>/dev/null | grep -Eq 'SleepDisabled[[:space:]]+1'; then
   run sudo -n /usr/bin/pmset -a disablesleep 0 2>/dev/null || run sudo pmset -a disablesleep 0

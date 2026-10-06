@@ -56,11 +56,11 @@ start_all() { # $1 = nosudo|sudo, rest = loop ids
   local caf="-ims"; [ "$POWER_MODE" = "portable" ] && caf="-ms"
   for id in $ids; do
     s="$(session_name "$id")"
-    if tmux has-session -t "$s" 2>/dev/null; then say "loop '$id' already running (tmux: $s)"
+    if tmux has-session -t "=$s" 2>/dev/null; then say "loop '$id' already running (tmux: $s)"
     else tmux new-session -d -s "$s" "cd '$KIT' && exec $(clean_env) caffeinate $caf ./agent-loop.sh $id" && say "started loop '$id' (tmux: $s)"; fi
   done
   if [ -n "${TG_ALLOWED_USER_ID:-}" ] && security find-generic-password -s "$KEYCHAIN_SERVICE" >/dev/null 2>&1; then
-    if tmux has-session -t agent-tg 2>/dev/null; then say "telegram bridge already running"
+    if tmux has-session -t =agent-tg 2>/dev/null; then say "telegram bridge already running"
     else tmux new-session -d -s agent-tg "cd '$KIT' && exec $(clean_env) bash -c '. ./config.sh && exec python3 tg-bridge.py run'" && say "started telegram bridge (tmux: agent-tg)"; fi
   else
     say "telegram bridge not started (TG_ALLOWED_USER_ID or Keychain token missing; alerts fall back to macOS notifications)"
@@ -85,7 +85,7 @@ case "$cmd" in
   off)
     rm -f "$STATE_DIR/ENABLED"
     need tmux
-    for s in $(tmux ls -F '#S' 2>/dev/null | grep '^agent-'); do tmux kill-session -t "$s" && say "stopped tmux session $s"; done
+    for s in $(tmux ls -F '#S' 2>/dev/null | grep '^agent-'); do tmux kill-session -t "=$s" && say "stopped tmux session $s"; done
     sbx stop "$SBX_NAME" >/dev/null 2>&1 && say "stopped sandbox $SBX_NAME"
     if pmset -g 2>/dev/null | grep -Eq 'SleepDisabled[[:space:]]+1'; then
       say "Restoring normal sleep (needs your password): sudo pmset -a disablesleep 0"
@@ -108,7 +108,7 @@ PY
     n=$(cat "$STATE_DIR/cycles-$(date +%Y-%m-%d).count" 2>/dev/null || echo 0); say "  cycles today: $n / $MAX_CYCLES_PER_DAY"
     say "== last log lines"; for f in "$STATE_DIR"/loop-*.log; do [ -f "$f" ] && tail -n 4 "$f" | sed 's/^/  /'; done ;;
   logs)  n="${1:-50}"; tail -n "$n" -f "$STATE_DIR"/loop-*.log ;;
-  attach) case "${1:-loop}" in tg) tmux attach -t agent-tg ;; loop|main) tmux attach -t agent-loop ;; *) tmux attach -t "$(session_name "$1")" ;; esac ;;
+  attach) case "${1:-loop}" in tg) tmux attach -t =agent-tg ;; loop|main) tmux attach -t =agent-loop ;; *) tmux attach -t "=$(session_name "$1")" ;; esac ;;
   pause)
     secs=$(parse_dur "${1:-}"); [ "$secs" -gt 0 ] || die "usage: pause 2h | 30m"
     echo $(( $(date +%s) + secs )) > "$STATE_DIR/PAUSE_UNTIL"; say "paused for ${1}" ;;
