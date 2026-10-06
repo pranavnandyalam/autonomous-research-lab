@@ -31,7 +31,8 @@ if [ "$LOOP_ID" = "main" ]; then STATE_FILE="STATE.md"; else STATE_FILE="STATE-$
 
 # ------------------------------------------------------------------ helpers
 log() {
-  printf '%s [%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$LOOP_ID" "$*" | tee -a "$LOG" >&2
+  # strip control characters: messages can include agent-written text (notes, questions) shown in terminals
+  printf '%s [%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$LOOP_ID" "$(printf '%s' "$*" | LC_ALL=C tr -d '\000-\010\013-\037\177')" | tee -a "$LOG" >&2
   if [ -f "$LOG" ] && [ "$(wc -c < "$LOG" | tr -d ' ')" -gt 5242880 ]; then mv "$LOG" "$LOG.1"; fi
 }
 

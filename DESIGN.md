@@ -40,6 +40,7 @@ sbx host proxy: GitHub token + network allowlist ─────▶ github.com/<
 | Malicious models/packages | safetensors/GGUF only, never `trust_remote_code`, pinned well-known packages, overseer reviews new dependencies |
 | Runaway usage | 50 min timeout, 150 max turns, `MAX_CYCLES_PER_DAY` (default 6), backoff on idle and limits, halt after 5 failures |
 | Hot laptop in a bag | portable power mode; bag guard (§6) |
+| Terminal escape codes in agent text | the board, step viewer, supervisor log and log pane strip control characters before anything reaches your terminal (an injected `ESC ]52` could otherwise rewrite the clipboard) |
 | Telegram summary model | runs inside the VM with `--tools ""` and no MCP: agent output may carry injected text, so it never reaches a Claude that has tools or connectors |
 
 **Bash deny rules are prefix patterns and can be evaded by creative spelling; they are a speed bump.** The real guards

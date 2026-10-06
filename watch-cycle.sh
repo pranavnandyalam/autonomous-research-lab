@@ -21,11 +21,13 @@ else
 fi
 echo "following $f"
 read -r -d '' VIEWER <<'PY'
-import json, sys, time
+import json, re, sys, time
+# agent-written text can carry terminal control codes (e.g. ESC ]52 rewrites the clipboard); strip them before printing
+_CTRL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")
 DIM, BOLD, CYAN, YEL, GRN, RED, OFF = "\033[2m", "\033[1m", "\033[36m", "\033[33m", "\033[32m", "\033[31m", "\033[0m"
 def short(x, n=160):
     s = x if isinstance(x, str) else json.dumps(x, ensure_ascii=False)
-    s = " ".join(s.split())
+    s = " ".join(_CTRL.sub(" ", s).split())
     return s if len(s) <= n else s[: n - 1] + "…"
 def tool_desc(name, inp):
     for k in ("command", "description", "file_path", "pattern", "url", "query", "prompt", "subagent_type"):
@@ -43,7 +45,7 @@ for line in sys.stdin:
     elif t == "assistant":
         for c in e.get("message", {}).get("content", []):
             if c.get("type") == "text" and c.get("text", "").strip():
-                print(f"{pad}{ts} {BOLD}{c['text'].strip()}{OFF}")
+                print(f"{pad}{ts} {BOLD}{_CTRL.sub(' ', c['text']).strip()}{OFF}")
             elif c.get("type") == "tool_use":
                 n = c.get("name", "?")
                 col = YEL if n == "Agent" else CYAN
