@@ -250,6 +250,8 @@ if s:
             if isinstance(x, dict) and x.get("type") == "result": d = x; break
 if isinstance(d, list):
     d = next((x for x in reversed(d) if isinstance(x, dict) and x.get("type") == "result"), None)
+if isinstance(d, dict) and d.get("type") not in (None, "result"):
+    d = None  # a lone stream event (e.g. killed right after start) is not a result
 d = d if isinstance(d, dict) else {}
 res = d.get("result") if isinstance(d.get("result"), str) else ""
 sub = str(d.get("subtype") or "")
