@@ -1,3 +1,5 @@
-config.local.sh
-__pycache__/
+*.orig
+*.rej
 .DS_Store
+__pycache__/
+config.local.sh
