@@ -39,7 +39,8 @@ fi
 
 if [ "$RESTART" -eq 1 ] && tmux has-session -t agent-tg 2>/dev/null; then
   tmux kill-session -t agent-tg
-  tmux new-session -d -s agent-tg "cd '$DEST' && . ./config.sh && exec python3 tg-bridge.py run" \
+  envclean="env$(sed -nE 's/^export ([A-Z_][A-Z0-9_]*)=.*/ -u \1/p' "$DEST/config.sh" | grep -v ' -u PATH$' | tr -d '\n')"   # see agent-ctl.sh clean_env
+  tmux new-session -d -s agent-tg "cd '$DEST' && exec $envclean bash -c '. ./config.sh && exec python3 tg-bridge.py run'" \
     && echo "  [ok]   Telegram bridge restarted on the new code"
 fi
 if tmux ls -F '#S' 2>/dev/null | grep -q '^agent-loop'; then

@@ -30,6 +30,10 @@ say() { printf '%s\n' "$*"; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 need() { command -v "$1" >/dev/null 2>&1 || die "missing '$1' (brew install $1)"; }
 
+# tmux keeps the environment of whatever process first started its server, including old exported kit settings;
+# config.sh only fills unset values, so strip every kit variable and let config.sh decide (e.g. a new LEAD_MODEL).
+clean_env() { printf 'env'; sed -nE 's/^export ([A-Z_][A-Z0-9_]*)=.*/ -u \1/p' "$KIT/config.sh" | grep -v ' -u PATH$' | tr -d '\n'; }
+
 session_name() { if [ "$1" = "main" ]; then echo "agent-loop"; else echo "agent-loop-$1"; fi; }
 
 ensure_vm() {
@@ -53,11 +57,11 @@ start_all() { # $1 = nosudo|sudo, rest = loop ids
   for id in $ids; do
     s="$(session_name "$id")"
     if tmux has-session -t "$s" 2>/dev/null; then say "loop '$id' already running (tmux: $s)"
-    else tmux new-session -d -s "$s" "cd '$KIT' && exec caffeinate $caf ./agent-loop.sh $id" && say "started loop '$id' (tmux: $s)"; fi
+    else tmux new-session -d -s "$s" "cd '$KIT' && exec $(clean_env) caffeinate $caf ./agent-loop.sh $id" && say "started loop '$id' (tmux: $s)"; fi
   done
   if [ -n "${TG_ALLOWED_USER_ID:-}" ] && security find-generic-password -s "$KEYCHAIN_SERVICE" >/dev/null 2>&1; then
     if tmux has-session -t agent-tg 2>/dev/null; then say "telegram bridge already running"
-    else tmux new-session -d -s agent-tg "cd '$KIT' && . ./config.sh && exec python3 tg-bridge.py run" && say "started telegram bridge (tmux: agent-tg)"; fi
+    else tmux new-session -d -s agent-tg "cd '$KIT' && exec $(clean_env) bash -c '. ./config.sh && exec python3 tg-bridge.py run'" && say "started telegram bridge (tmux: agent-tg)"; fi
   else
     say "telegram bridge not started (TG_ALLOWED_USER_ID or Keychain token missing; alerts fall back to macOS notifications)"
   fi
