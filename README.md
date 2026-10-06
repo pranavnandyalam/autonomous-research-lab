@@ -135,6 +135,23 @@ section unless you know why you are removing it.
 Nothing here deletes work: a stopped sandbox keeps its files, and everything pushed stays on GitHub.
 `bash uninstall.sh` removes everything the kit set up (it asks before each part and never deletes your repo).
 
+## Multiple teams
+
+Run several agent teams in parallel on different projects. Each team has its own Lead and subagents, its own clone
+of the lab repo inside the sandbox (so two Leads never share a working tree), its own daily cycle cap, and its own
+live board on Telegram. Teams pick their projects freely, claim them in `CLAIMS.md` so they never duplicate each
+other, never edit another team's projects, and share the radar and backlog (rules in `prompt.md` §5b).
+
+```bash
+TEAM=beta bash setup.sh team          # clone + safety hook for team "beta"
+# config.local.sh:  export TEAMS="main beta"
+bash deploy.sh && ~/agent-lab-kit/agent-ctl.sh on     # starts every team in TEAMS
+./view.sh beta                        # live terminal view of team beta
+```
+Telegram: free text goes to every team, `@beta ...` to one team, `/explain beta` summarizes one. Each team's cycles
+cost the same as one team's, so usage scales with the number of teams; `MAX_CYCLES_PER_DAY` is per team. Two teams
+fit an 18-core Mac comfortably; more teams compete for the sandbox's CPU.
+
 ## Laptop or desk (`POWER_MODE`)
 
 - **portable** (default): closing the lid sleeps the Mac; the sandbox freezes and resumes when you open it (time

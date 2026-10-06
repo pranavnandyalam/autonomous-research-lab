@@ -44,9 +44,9 @@ ensure_vm() {
 
 start_all() { # $1 = nosudo|sudo, rest = loop ids
   local mode="$1"; shift
-  local ids="${*:-main}" id s
+  local ids="${*:-${TEAMS:-main}}" id s
   need tmux; need sbx; need caffeinate
-  touch "$STATE_DIR/ENABLED"; rm -f "$STATE_DIR/HOST_STOP" "$STATE_DIR/PAUSE_UNTIL"
+  echo "$ids" > "$STATE_DIR/ENABLED"; rm -f "$STATE_DIR/HOST_STOP" "$STATE_DIR/PAUSE_UNTIL"   # ENABLED lists the teams to restore after a reboot
   if [ "$mode" = "sudo" ] && [ "$POWER_MODE" != "portable" ]; then
     say "Disabling system sleep (needs your password): sudo pmset -a disablesleep 1"
     sudo pmset -a disablesleep 1 || say "WARNING: pmset failed; the Mac will sleep when the lid closes."
@@ -81,7 +81,7 @@ case "$cmd" in
   on)  start_all sudo "$@"; say "ON. Check: ./agent-ctl.sh status   |   Logs: ./agent-ctl.sh logs" ;;
   boot)
     sleep 20
-    if [ -f "$STATE_DIR/ENABLED" ]; then start_all nosudo main; else say "ENABLED flag not set; nothing to restart"; fi ;;
+    if [ -f "$STATE_DIR/ENABLED" ]; then start_all nosudo $(cat "$STATE_DIR/ENABLED" 2>/dev/null); else say "ENABLED flag not set; nothing to restart"; fi ;;
   off)
     rm -f "$STATE_DIR/ENABLED"
     need tmux

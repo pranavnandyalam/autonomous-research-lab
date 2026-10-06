@@ -51,12 +51,12 @@ def vm(cmd, stdin=None, timeout=60):
         return ""
 
 
-def workdir():
-    w = os.environ.get("WORKDIR", "").strip()
-    if w:
-        return w
+def workdir(team="main"):
+    """The team's clone inside the VM (main: WORKDIR or state/workdir; other teams: state/workdir-<team>)."""
+    if team == "main" and os.environ.get("WORKDIR", "").strip():
+        return os.environ["WORKDIR"].strip()
     try:
-        return open(os.path.join(activity.STATE, "workdir")).read().strip()
+        return open(os.path.join(activity.STATE, "workdir" if team == "main" else "workdir-" + team)).read().strip()
     except OSError:
         return ""
 
@@ -77,9 +77,9 @@ def lead_notes(path):
     return notes[-MAX_LEAD_NOTES:]
 
 
-def current_plan():
-    """The most recently touched PLAN.md in the agent's clone (its working copy, so it includes uncommitted edits)."""
-    wd = workdir()
+def current_plan(team="main"):
+    """The most recently touched PLAN.md in the team's clone (its working copy, so it includes uncommitted edits)."""
+    wd = workdir(team)
     if not wd:
         return ""
     out = vm(["bash", "-c", "cd %s && f=$(ls -t projects/*/PLAN.md 2>/dev/null | head -1) && [ -n \"$f\" ] && "
@@ -89,7 +89,7 @@ def current_plan():
 
 def build_input(path):
     parts = ["===DATA===", "-- live board --", activity.render(path)]
-    plan = current_plan()
+    plan = current_plan(activity.team_of(path))
     parts += ["-- current research plan (excerpt) --", plan or "(no plan written yet)"]
     notes = lead_notes(path)
     if notes:

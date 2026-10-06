@@ -105,6 +105,17 @@ def newest_cycle(loop="main"):
     return max(files, key=os.path.getmtime) if files else None
 
 
+def newest_any():
+    """The most recent cycle of any team."""
+    files = glob.glob(os.path.join(STATE, "outputs", "cycle-*.json"))
+    return max(files, key=os.path.getmtime) if files else None
+
+
+def team_of(path):
+    m = re.search(r"cycle-\d{8}T\d{6}-([A-Za-z0-9_]+)\.json$", os.path.basename(path))
+    return m.group(1) if m else "main"
+
+
 def cycle_start(path):
     m = re.search(r"cycle-(\d{8}T\d{6})-", os.path.basename(path))
     return datetime.strptime(m.group(1), "%Y%m%dT%H%M%S").timestamp() if m else os.path.getctime(path)
@@ -166,10 +177,10 @@ def render(path):
     mins = round((r.get("duration_ms") or 0) / 60000) if r else round((time.time() - st["start"]) / 60)
     if r:
         mark = re.search(r"CYCLE_RESULT:\s*([^\n]+)", str(r.get("result", "")))
-        head = "%s Cycle finished · %d min · %s turns\n%s" % ("❌" if r.get("is_error") else "✅", mins, r.get("num_turns"),
+        head = "%s Team %s · cycle finished · %d min · %s turns\n%s" % ("❌" if r.get("is_error") else "✅", team_of(path), mins, r.get("num_turns"),
                                                             clip(mark.group(1) if mark else r.get("subtype"), 300))
     else:
-        head = "🔬 Cycle running · %d min · %d steps · %d commit%s" % (mins, st["steps"], st["commits"], "" if st["commits"] == 1 else "s")
+        head = "🔬 Team %s · cycle running · %d min · %d steps · %d commit%s" % (team_of(path), mins, st["steps"], st["commits"], "" if st["commits"] == 1 else "s")
     out = [head, "", "WHO'S DOING WHAT", "%s Lead — %s" % (ICONS["lead"], "done" if r else st["lead"])]
     agents = [st["agents"][k] for k in st["order"] if st["agents"][k]["kind"] != "job"]
     hidden = max(0, len(agents) - MAX_AGENTS)

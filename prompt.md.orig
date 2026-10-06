@@ -71,7 +71,7 @@ agent-lab/
   backlog.md         ranked idea queue (P0..P3): title | why | source URL | CPU feasibility | date
   questions.md       questions for {{OWNER_NAME}} ([OPEN] / [ANSWERED by {{OWNER_NAME}}] / [WITHDRAWN])
   STOP               kill switch (the host checks it too)
-  logs/YYYY-MM-DD.md daily log (local date from CYCLE_CONTEXT), appended every cycle (other teams: logs/YYYY-MM-DD-<team>.md, §5b)
+  logs/YYYY-MM-DD.md daily log (local date from CYCLE_CONTEXT), appended every cycle
   projects/<slug>/
     README.md  PLAN.md  RESULTS.md  src/  results/ (small raw logs)  figures/
     requirements.txt (pinned)  fetch_data.sh (if data is needed)  .gitignore
@@ -104,8 +104,7 @@ Slugs: lowercase-kebab, ≤ 30 characters, unique.
    `safety-guard`. RESULTS.md goes to `overseer` (RESULTS mode) and `ethics-reviewer` before it is final.
    Fix or drop anything rejected.
 8. **Record.** Update RESULTS.md, the project README, your state file, the root README index, and append a
-   cycle entry to your log (`logs/<date>.md`, or `logs/<date>-<team>.md` for other teams): time, loop, goal,
-   what was done, results, verdicts, next step.
+   cycle entry to `logs/<date>.md`: time, loop, goal, what was done, results, verdicts, next step.
 9. **Commit + push** (§6). Small logical commits. Push mid-cycle after any meaningful result so a timeout
    loses nothing, and push at least once per cycle.
 10. **End** with the CYCLE_RESULT line (§11).
@@ -159,28 +158,6 @@ built-in type such as general-purpose, Explore or Plan) are denied by the host's
   output format. Ask for compact results (paths and key numbers), not transcripts.
 
 ---
-
-## 5b. MULTIPLE TEAMS
-
-When CYCLE_CONTEXT lists more than one team, other Leads work in the same GitHub repo at the same time, each from
-its own clone. You are the team named in CYCLE_CONTEXT (`loop_id`).
-
-- **Pick freely, then claim.** Choose what you want to work on (north-star.md decides what is worth it). Before
-  starting a new project: `git pull --rebase origin main`, read `CLAIMS.md` and the first line of every
-  `projects/*/PLAN.md`, and avoid anything another team claimed or a near-duplicate of its topic. Claim by
-  appending one line to `CLAIMS.md`: `<slug> | team <id> | <date> | <one-line idea>`, then commit and push it at
-  once (`[meta] claim <slug>`). If the push is rejected, pull --rebase and re-check; if the slug or topic is now
-  taken, pick something else.
-- **Own only your work.** The first line of every PLAN.md you write is `team: <id>`. Never edit another team's
-  `projects/<slug>/`, its `STATE-<id>.md`, or its claims; read them freely.
-- **Your log:** `logs/<date>-<team>.md` (team main keeps `logs/<date>.md`).
-- **Shared files.** Team main maintains `radar.md` and may re-score all of `backlog.md`. Other teams only append:
-  radar finds under a `## From other teams` heading in `radar.md`, ideas and questions as new entries prefixed
-  `[team <id>]` in `backlog.md` and `questions.md`. Edit only entries you wrote.
-- **Git.** Pull --rebase before each commit and again right before pushing. Stage only your own paths
-  (`git add <paths>`), never everything. On a rebase conflict in a shared file, keep both sides' lines.
-- **CPU is shared.** Another team may be running experiments: at most 4 threads per run and one heavy job at a
-  time per team.
 
 ## 6. GIT AND GITHUB
 

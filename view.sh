@@ -2,7 +2,7 @@
 # view.sh — one tmux screen that shows the whole lab live. Read-only.
 #
 #   ./view.sh [loop-id]     (re)create the "agent-view" tmux session and attach to it
-#   tmux attach -t agent-view     re-open it later from any terminal (detach with Ctrl-b d)
+#   tmux attach -t agent-view     re-open it later (other teams: agent-view-<team>; detach with Ctrl-b d)
 #
 # Left: every step as it happens (the lead and, indented, its scouts/builders/reviewers), following each new cycle.
 # Top right: who is doing what (the same board as Telegram), refreshed every 10s. Bottom right: the supervisor log.
@@ -31,7 +31,7 @@ case "$mode" in
     done ;;
 esac
 
-loop="$mode"; s="agent-view"
+loop="$mode"; s="agent-view"; [ "$loop" = "main" ] || s="agent-view-$loop"
 if ! tmux has-session -t "$s" 2>/dev/null; then
   tmux new-session -d -s "$s" -x 220 -y 55 "exec bash '$KIT/view.sh' --steps $loop"
   tmux split-window -h -l 45% -t "$s" "exec bash '$KIT/view.sh' --board $loop"

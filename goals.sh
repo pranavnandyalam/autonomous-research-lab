@@ -35,8 +35,12 @@ push() { # $1 = new file, $2 = sha it was based on, $3 = summary
 
 notify() { # queue a note for the agent's next cycle (same channel as Telegram free text)
   mkdir -p "$STATE_DIR"
-  printf '[%s] north-star.md was updated by the owner (%s). Re-read it this cycle and adjust plans and the backlog to match.\n' \
-    "$(date '+%Y-%m-%d %H:%M')" "$1" >> "$STATE_DIR/inbox.txt"
+  local t q
+  for t in ${TEAMS:-main}; do   # every team gets the note (main's queue is inbox.txt)
+    q="$STATE_DIR/inbox-$t.txt"; [ "$t" = "main" ] && q="$STATE_DIR/inbox.txt"
+    printf '[%s] north-star.md was updated by the owner (%s). Re-read it this cycle and adjust plans and the backlog to match.\n' \
+      "$(date '+%Y-%m-%d %H:%M')" "$1" >> "$q"
+  done
   echo "the agent will see the change at the start of its next cycle"
 }
 

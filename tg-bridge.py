@@ -37,6 +37,7 @@ DIGEST_HOUR = int(os.environ.get("DIGEST_HOUR", "20") or 20)
 ALLOWED = (os.environ.get("TG_ALLOWED_USER_ID") or "").strip()
 MAX_MSG = 3900          # Telegram limit is 4096
 MAX_INBOX_TEXT = 1500   # per owner message handed to the agent
+TEAMS = (os.environ.get("TEAMS") or "main").split()  # one loop per team; free text goes to all, "@<team> ..." to one
 LIVE_BOARD = (os.environ.get("TG_LIVE_BOARD") or "1").strip() == "1"
 LIVE_EVERY = 45        # seconds between live board edits
 LIVE_MAX_AGE = 7200    # only follow a cycle file written to in the last 2h
@@ -150,10 +151,14 @@ def ago(epoch):
 
 
 def cycles_today():
-    try:
-        return int(open(os.path.join(STATE, "cycles-%s.count" % datetime.now().strftime("%Y-%m-%d"))).read().strip())
-    except Exception:
-        return 0
+    """Cycles started today, summed over all teams (each team keeps its own counter file)."""
+    total = 0
+    for f in glob.glob(os.path.join(STATE, "cycles-%s*.count" % datetime.now().strftime("%Y-%m-%d"))):
+        try:
+            total += int(open(f).read().strip())
+        except (OSError, ValueError):
+            pass
+    return total
 
 
 def sleep_disabled():
@@ -302,7 +307,7 @@ def handle(text):
         return ("agent-lab bridge. Commands:\n/status  state of the loop\n/stop  idle after the current cycle\n"
                 "/kill  stop the sandbox now and idle\n/go  resume (also clears pause)\n/pause 2h  pause for a duration (m or h)\n"
                 "/digest  summary now\n/live  live board of what every agent is doing (/live off, /live on)\n"
-                "/explain  plain-English summary of what the lab is doing right now\n"
+                "/explain [team]  plain-English summary of what the lab is doing right now\n"
                 "/last  the agent's report from the latest cycle\n/radar  current trend radar\n/goals  the lab's goals (north-star.md)\n"
                 "Any other text is queued for the agent's next cycle.")
     if cmd == "/status":
@@ -312,13 +317,15 @@ def handle(text):
             touch("tg.live_off")
             return "Live board off. /live on to resume."
         rm("tg.live_off")
-        path = activity.newest_cycle()
-        if not path:
-            return "No cycles yet. The board appears when the next cycle starts."
-        live_post(path)
-        return None  # the board itself is the reply
+        posted = 0
+        for team in TEAMS:
+            path = activity.newest_cycle(team)
+            if path:
+                live_post(path, team)
+                posted += 1
+        return None if posted else "No cycles yet. The board appears when the next cycle starts."
     if cmd == "/explain":
-        path = activity.newest_cycle()
+        path = activity.newest_cycle(arg) if arg in TEAMS else activity.newest_any()
         if not path:
             return "No cycles yet."
         return narrate.narrate(path) or "Could not write a summary right now (is the sandbox running?). Try /last."
@@ -355,17 +362,25 @@ def handle(text):
     body = t[5:].strip() if cmd == "/note" else t
     if not body:
         return "Nothing to queue."
+    teams = TEAMS
+    first, _, rest = body.partition(" ")
+    if first.startswith("@") and first[1:] in TEAMS and rest.strip():  # "@beta do X" goes to one team only
+        teams, body = [first[1:]], rest.strip()
     os.makedirs(STATE, exist_ok=True)
-    with open(os.path.join(STATE, "inbox.txt"), "a") as f:
-        f.write("[%s] %s\n" % (datetime.now().strftime("%Y-%m-%d %H:%M"), body[:MAX_INBOX_TEXT].replace("\r", " ")))
-    return "Queued for the agent's next cycle."
+    line = "[%s] %s\n" % (datetime.now().strftime("%Y-%m-%d %H:%M"), body[:MAX_INBOX_TEXT].replace("\r", " "))
+    for t in teams:
+        with open(os.path.join(STATE, "inbox.txt" if t == "main" else "inbox-%s.txt" % t), "a") as f:
+            f.write(line)
+    who = "team " + teams[0] if len(teams) == 1 and len(TEAMS) > 1 else ("all teams" if len(TEAMS) > 1 else "the agent")
+    return "Queued for %s (next cycle)." % who
 
 
-LIVE_PATH = os.path.join(STATE, "tg.live.json")
+def live_path(team):
+    return os.path.join(STATE, "tg.live.json" if team == "main" else "tg.live-%s.json" % team)
 
 
-def live_state():
-    return read_json(LIVE_PATH) or {}
+def live_state(team="main"):
+    return read_json(live_path(team)) or {}
 
 
 def compose(narr, board):
@@ -376,15 +391,15 @@ def compose(narr, board):
     return head + board[: max(0, MAX_MSG - len(head))]
 
 
-def save_live(st):
-    with open(LIVE_PATH, "w") as f:
+def save_live(st, team="main"):
+    with open(live_path(team), "w") as f:
         json.dump(st, f)
 
 
-def live_post(path):
-    """Post a new board for this cycle file, pin it, and make it the one that gets edited."""
+def live_post(path, team="main"):
+    """Post a new board for this team's cycle file, pin it, and make it the one that gets edited."""
     board = activity.render(path)
-    old = live_state().get("message_id")
+    old = live_state(team).get("message_id")
     mid = send_one(board)
     for method, params in (("unpinChatMessage", {"message_id": old}), ("pinChatMessage", {"message_id": mid, "disable_notification": "true"})):
         if params["message_id"]:
@@ -392,24 +407,29 @@ def live_post(path):
                 api(method, dict(params, chat_id=ALLOWED))
             except RuntimeError:
                 pass  # pinning is cosmetic
-    save_live({"path": path, "message_id": mid, "text": board, "done": False, "narr": "", "narr_at": 0})
+    save_live({"path": path, "message_id": mid, "text": board, "done": False, "narr": "", "narr_at": 0}, team)
 
 
 def live_tick():
-    """Called from the poll loop: start a board for a new cycle, or refresh the current one if it changed."""
+    """Called from the poll loop: for each team, start a board for a new cycle or refresh the current one."""
     if not LIVE_BOARD or os.path.exists(os.path.join(STATE, "tg.live_off")):
         return
-    path = activity.newest_cycle()
+    for team in TEAMS:
+        live_tick_team(team)
+
+
+def live_tick_team(team):
+    path = activity.newest_cycle(team)
     if not path or time.time() - os.path.getmtime(path) > LIVE_MAX_AGE:
         return
-    st = live_state()
+    st = live_state(team)
     if st.get("path") != path:
-        live_post(path)
+        live_post(path, team)
         return
     if st.get("done") or not st.get("message_id"):
         return
     board = activity.render(path)
-    finished = "Cycle finished" in board.splitlines()[0]
+    finished = "cycle finished" in board.splitlines()[0].lower()
     if NARRATE and finished:  # one plain-English summary per cycle, when it ends (/explain for one on demand)
         narr = narrate.narrate(path)
         if narr:
@@ -421,7 +441,7 @@ def live_tick():
         except RuntimeError:
             pass  # "message is not modified" or the message was deleted; /live posts a fresh one
     st.update(text=text, done=finished)
-    save_live(st)
+    save_live(st, team)
 
 
 def run():
