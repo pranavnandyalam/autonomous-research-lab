@@ -1,0 +1,7 @@
+# config.local.sh — YOUR values. Copy to config.local.sh (git ignores it) and fill in.
+export OWNER_NAME="Ada"                 # how the agent addresses you
+export GITHUB_USER="your-github-user"   # your GitHub username
+export TG_ALLOWED_USER_ID=""            # optional: your numeric Telegram id from @userinfobot (empty = Telegram off)
+# Anything else from config.sh can be overridden here too, e.g.:
+# export MAX_CYCLES_PER_DAY=4
+# export POWER_MODE=always-on

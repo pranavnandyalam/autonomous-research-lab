@@ -1,0 +1,35 @@
+# environments and caches
+.venv/
+venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+node_modules/
+.cache/
+# secrets
+.env
+.env.*
+*.pem
+*.key
+# data, weights, checkpoints (never commit; write fetch scripts instead)
+data/
+datasets/
+checkpoints/
+*.safetensors
+*.gguf
+*.bin
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.h5
+*.pkl
+*.parquet
+*.arrow
+*.zip
+*.tar
+*.tar.gz
+# agent-config files the agent must never create in the repo
+.claude/
+CLAUDE.md
+.mcp.json
