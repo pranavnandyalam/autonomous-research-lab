@@ -307,7 +307,7 @@ def handle(text):
         return ("agent-lab bridge. Commands:\n/status  state of the loop\n/stop  idle after the current cycle\n"
                 "/kill  stop the sandbox now and idle\n/go  resume (also clears pause)\n/pause 2h  pause for a duration (m or h)\n"
                 "/digest  summary now\n/live  live board of what every agent is doing (/live off, /live on)\n"
-                "/explain [team]  plain-English summary of what the lab is doing right now\n"
+                "/explain [team]  plain-English summary of what the lab is doing right now\n/review  run the manager's review of all teams now (~$1-2)\n"
                 "/last  the agent's report from the latest cycle\n/radar  current trend radar\n/goals  the lab's goals (north-star.md)\n"
                 "Any other text is queued for the agent's next cycle.")
     if cmd == "/status":
@@ -329,6 +329,12 @@ def handle(text):
         if not path:
             return "No cycles yet."
         return narrate.narrate(path) or "Could not write a summary right now (is the sandbox running?). Try /last."
+    if cmd == "/review":
+        if os.path.isdir(os.path.join(STATE, "manager.lock")):
+            return "A manager review is already running."
+        subprocess.Popen(["bash", os.path.join(os.path.dirname(os.path.abspath(__file__)), "manager.sh"), "--force"],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, start_new_session=True)
+        return "Manager review started (read-only, ~$1-2). The report arrives here in a few minutes."
     if cmd == "/last":
         return cmd_last()
     if cmd == "/radar":

@@ -39,7 +39,7 @@ if sbx ls 2>/dev/null | grep -q "$SBX_NAME" && ask "Delete the sandbox '$SBX_NAM
 fi
 
 hdr "4. background jobs (LaunchAgents)"
-for label in com.agentlab.boot com.agentlab.bagguard; do
+for label in com.agentlab.boot com.agentlab.bagguard com.agentlab.manager; do
   plist="$HOME/Library/LaunchAgents/$label.plist"
   [ -f "$plist" ] || continue
   run launchctl bootout "gui/$(id -u)/$label" 2>/dev/null; run rm -f "$plist"; say "  removed $label"

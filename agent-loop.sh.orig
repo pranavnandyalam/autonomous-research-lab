@@ -69,7 +69,8 @@ notify() {
   fi
 }
 
-count_file() { echo "$STATE_DIR/cycles-$(date +%Y-%m-%d).count"; }
+# each team (loop) has its own daily counter; main keeps the original file name
+count_file() { if [ "$LOOP_ID" = "main" ]; then echo "$STATE_DIR/cycles-$(date +%Y-%m-%d).count"; else echo "$STATE_DIR/cycles-$(date +%Y-%m-%d)-$LOOP_ID.count"; fi; }
 cycles_today() { local n; n=$(cat "$(count_file)" 2>/dev/null || echo 0); case "$n" in ""|*[!0-9]*) n=0 ;; esac; echo "$n"; }
 bump_cycles() { local n; n=$(( $(cycles_today) + 1 )); echo "$n" > "$(count_file)"; echo "$n"; }
 
@@ -152,11 +153,13 @@ EOS
 
 # ------------------------------------------------------------------ cycle command
 CLAIMED=""
+# owner messages: one queue per team (main keeps inbox.txt); the bridge and goals.sh write to every team's queue
+if [ "$LOOP_ID" = "main" ]; then INBOX="$STATE_DIR/inbox.txt"; else INBOX="$STATE_DIR/inbox-$LOOP_ID.txt"; fi
 claim_inbox() {
   CLAIMED=""
-  if [ -s "$STATE_DIR/inbox.txt" ]; then
+  if [ -s "$INBOX" ]; then
     CLAIMED="$STATE_DIR/inbox.claimed.$$.$(date +%s)"
-    mv "$STATE_DIR/inbox.txt" "$CLAIMED" 2>/dev/null || CLAIMED=""
+    mv "$INBOX" "$CLAIMED" 2>/dev/null || CLAIMED=""
   fi
 }
 
@@ -170,6 +173,7 @@ build_cycle_prompt() { # $1 = cycle number today, $2 = host notes
     "- cycle_today: $1 of $MAX_CYCLES_PER_DAY" \
     "- local_time: $(date '+%Y-%m-%d %H:%M %Z')" \
     "- workdir: $WORKDIR" \
+    "- team: $LOOP_ID (all teams: ${TEAMS:-main}; see manual section 5b)" \
     "- repo: https://github.com/$GITHUB_USER/$REPO.git" \
     "- host_notes: ${2:-none}" \
     "" \
@@ -267,6 +271,16 @@ print("\x1f".join([cls, clean(marker), clean(project), clean(pushed), clean(turn
 PY
 }
 
+# ------------------------------------------------------------------ teams
+# Every team other than main works in ITS OWN clone of the repo (TEAM=<id> bash setup.sh team), so two Leads never
+# share a working tree or git index. Per-team overrides: LOOP_<id>_WORKDIR, LOOP_<id>_MAX_CYCLES, LOOP_<id>_MODEL.
+if [ "$LOOP_ID" != "main" ]; then
+  WORKDIR="$(getvar "LOOP_${LOOP_ID}_WORKDIR")"
+  [ -n "$WORKDIR" ] || WORKDIR="$(cat "$STATE_DIR/workdir-$LOOP_ID" 2>/dev/null)"
+  [ -n "$WORKDIR" ] || { echo "team '$LOOP_ID' has no clone yet: run  TEAM=$LOOP_ID bash setup.sh team" >&2; exit 1; }
+fi
+m="$(getvar "LOOP_${LOOP_ID}_MAX_CYCLES")"; [ -n "$m" ] && MAX_CYCLES_PER_DAY="$m"
+
 # ------------------------------------------------------------------ startup
 if [ "$PRINT_CMD" -eq 1 ]; then
   [ -n "${WORKDIR:-}" ] || WORKDIR="/home/agent/$REPO"
@@ -339,7 +353,7 @@ while :; do
 
   n=$(cycles_today)
   if [ "$n" -ge "$MAX_CYCLES_PER_DAY" ]; then
-    notify "cap-$(date +%F)" 86400 "Daily cycle cap reached ($n/$MAX_CYCLES_PER_DAY). Resuming after midnight."
+    notify "cap-$(date +%F)-$LOOP_ID" 86400 "Team $LOOP_ID reached its daily cycle cap ($n/$MAX_CYCLES_PER_DAY). Resuming after midnight."
     status_write state=daily_cap
     [ "$ONCE" -eq 1 ] && exit 0
     nap 900; continue
@@ -469,7 +483,7 @@ https://github.com/$GITHUB_USER/$REPO/commits/main   (/last = full report, /rada
   # owner messages: archive if the cycle really ran, give them back if it failed outright
   if [ -n "$CLAIMED" ] && [ -f "$CLAIMED" ]; then
     case "$CLASS" in
-      FAIL|AUTH|TRANSIENT|RATELIMIT) cat "$CLAIMED" >> "$STATE_DIR/inbox.txt"; rm -f "$CLAIMED" ;;
+      FAIL|AUTH|TRANSIENT|RATELIMIT) cat "$CLAIMED" >> "$INBOX"; rm -f "$CLAIMED" ;;
       *) mv "$CLAIMED" "$STATE_DIR/inbox-archive/" ;;
     esac
   fi

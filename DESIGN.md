@@ -100,6 +100,10 @@ are the network allowlist, the token scope, the ruleset, and the host-side check
 6. **Deployed copy:** macOS blocks LaunchAgents from reading `~/Documents` ("Operation not permitted"), so the kit runs
    from `~/agent-lab-kit` (`deploy.sh`). `rsync` replaces files by rename, so a running loop keeps its old copy.
 7. **Personal values** live in the git-ignored `config.local.sh`, so a fork cannot leak them by accident.
+10. **Manager review is advisory and read-only.** It reads agent-written files (a prompt-injection surface), so it
+    gets only Read/Glob/Grep in its own clone, numbers come from the host's logs (HOST_FACTS), and its advice enters a
+    team's cycle in a separate MANAGER_ADVICE block that the manual says never overrides goals, owner messages or
+    the manual. It never writes into the owner-message queue.
 9. **Multiple teams share one sandbox but not a working tree.** Each non-main team runs from its own clone
    (`setup.sh team`), with its own lock, log, state file, owner-message queue, daily counter and Telegram board.
    Coordination is in the manual (§5b): claim in `CLAIMS.md` before starting, `team: <id>` on every PLAN.md,

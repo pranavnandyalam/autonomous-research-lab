@@ -152,6 +152,19 @@ Telegram: free text goes to every team, `@beta ...` to one team, `/explain beta`
 cost the same as one team's, so usage scales with the number of teams; `MAX_CYCLES_PER_DAY` is per team. Two teams
 fit an 18-core Mac comfortably; more teams compete for the sandbox's CPU.
 
+## Manager review (optional, recommended with several teams)
+
+Once a day a **manager** agent reviews every team against your goals: is each project worth doing, is it making
+real progress, is the work rigorous, are teams overlapping, is the cost justified? It sends you a plain-English
+report on Telegram with any decisions only you can make, and gives each team concrete advice for its next cycle.
+
+```bash
+bash ~/agent-lab-kit/setup.sh manager     # its own read-only clone + a daily run at MANAGER_HOUR:MINUTE (19:30)
+```
+Telegram `/review` runs one now. It is deliberately powerless: it can only read files (no shell, web or writes), its
+advice reaches the teams as a labelled colleague's opinion (never as your instructions), and stopping or switching a
+project stays your call. A review costs roughly $0.25-2 with Opus.
+
 ## Laptop or desk (`POWER_MODE`)
 
 - **portable** (default): closing the lid sleeps the Mac; the sandbox freezes and resumes when you open it (time

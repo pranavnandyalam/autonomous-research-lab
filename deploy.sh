@@ -32,6 +32,10 @@ if ! grep -q "$DEST/agent-ctl.sh" "$plist" 2>/dev/null; then
   bash "$DEST/setup.sh" launchd
 fi
 
+mplist="$HOME/Library/LaunchAgents/com.agentlab.manager.plist"
+if [ -f "$mplist" ] && ! grep -q "$DEST/manager.sh" "$mplist"; then
+  bash "$DEST/setup.sh" manager
+fi
 gplist="$HOME/Library/LaunchAgents/com.agentlab.bagguard.plist"
 if [ -f "$gplist" ] && ! grep -q "$DEST/bag-guard.sh" "$gplist"; then
   bash "$DEST/setup.sh" bagguard

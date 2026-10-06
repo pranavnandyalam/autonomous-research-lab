@@ -14,6 +14,7 @@
 #   seed       copy repo-seed/ files that are missing into the clone, push them, install the pre-commit hook
 #   telegram   bot token into the Keychain + selftest (optional)
 #   launchd    LaunchAgent that restores the agent after login/reboot if you had it ON
+#   team       (not in the default run) TEAM=<id> bash setup.sh team: give another agent team its own clone
 #   bagguard   (not in the default run) LaunchAgent that turns lid-closed mode off on battery; needs Amphetamine Power Protect
 #   pmset      keep the Mac awake with the lid closed (sudo)
 #   summary    what only you can do
@@ -237,6 +238,20 @@ EOF
   info "FileVault: after a cold reboot you must log in before any LaunchAgent runs."
 }
 
+step_team() {
+  hdr "agent team '${TEAM:-}' (its own clone, so two Leads never share a working tree)"
+  case "${TEAM:-}" in ""|main|*[!A-Za-z0-9_]*) die "usage: TEAM=<id> bash setup.sh team   (id: letters/digits/_, not 'main')" ;; esac
+  [ "$DRYRUN" -eq 1 ] && { printf '  [dry]  would clone the repo to ~/%s-%s in the VM, install the pre-commit hook, record %s/workdir-%s\n' "$REPO" "$TEAM" "$STATE_DIR" "$TEAM"; return 0; }
+  local home wd; home=$(vmx bash -c 'echo $HOME' </dev/null | tr -d '\r'); [ -n "$home" ] || die "could not read the VM home directory"
+  wd="$home/$REPO-$TEAM"
+  if vmx test -d "$wd/.git" </dev/null; then ok "already cloned at $wd"
+  else vmx git clone -q "https://github.com/$GITHUB_USER/$REPO.git" "$wd" </dev/null && ok "cloned to $wd" || die "clone failed"; fi
+  sbx exec -i -w "$wd" "$SBX_NAME" sh -c 'cat > .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit' < "$KIT/pre-commit-hook.sh" && ok "pre-commit hook installed"
+  echo "$wd" > "$STATE_DIR/workdir-$TEAM"; ok "recorded $STATE_DIR/workdir-$TEAM"
+  case " ${TEAMS:-main} " in *" $TEAM "*) : ;; *) info "add '$TEAM' to TEAMS in config.sh (now: ${TEAMS:-main}) so agent-ctl.sh on starts it" ;; esac
+  info "start it: ~/agent-lab-kit/agent-ctl.sh on   (or: agent-ctl.sh on $TEAM)   | watch it: ./view.sh $TEAM"
+}
+
 step_bagguard() {
   hdr "bag guard (portable mode + Amphetamine lid-closed mode)"
   local label="com.agentlab.bagguard" plist="$HOME/Library/LaunchAgents/com.agentlab.bagguard.plist"
@@ -288,7 +303,7 @@ EOF
 
 for s in $STEPS; do
   case "$s" in
-    check|sbx|policy|vm|secrets|identity|clone|seed|telegram|launchd|bagguard|pmset|summary) "step_$s" ;;
+    check|sbx|policy|vm|secrets|identity|clone|seed|telegram|launchd|bagguard|team|pmset|summary) "step_$s" ;;
     *) die "unknown step '$s'" ;;
   esac
 done

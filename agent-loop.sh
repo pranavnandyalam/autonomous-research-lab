@@ -155,6 +155,12 @@ EOS
 CLAIMED=""
 # owner messages: one queue per team (main keeps inbox.txt); the bridge and goals.sh write to every team's queue
 if [ "$LOOP_ID" = "main" ]; then INBOX="$STATE_DIR/inbox.txt"; else INBOX="$STATE_DIR/inbox-$LOOP_ID.txt"; fi
+# manager advice: written by manager.sh once a day, handed to this team's next cycle as advice (never as owner text)
+ADVICE="$STATE_DIR/manager-advice-$LOOP_ID.txt"; ADV_CLAIMED=""
+claim_advice() {
+  ADV_CLAIMED=""
+  if [ -s "$ADVICE" ]; then ADV_CLAIMED="$ADVICE.claimed"; mv "$ADVICE" "$ADV_CLAIMED" 2>/dev/null || ADV_CLAIMED=""; fi
+}
 claim_inbox() {
   CLAIMED=""
   if [ -s "$INBOX" ]; then
@@ -166,6 +172,8 @@ claim_inbox() {
 build_cycle_prompt() { # $1 = cycle number today, $2 = host notes
   local owner="<none>"
   [ -n "$CLAIMED" ] && [ -s "$CLAIMED" ] && owner="$(head -c 6000 "$CLAIMED")"
+  local advice="<none>"
+  [ -n "$ADV_CLAIMED" ] && [ -s "$ADV_CLAIMED" ] && advice="$(head -c 3000 "$ADV_CLAIMED")"
   printf '%s\n' \
     "CYCLE_CONTEXT" \
     "- loop_id: $LOOP_ID" \
@@ -179,6 +187,9 @@ build_cycle_prompt() { # $1 = cycle number today, $2 = host notes
     "" \
     "OWNER_MESSAGES (authenticated Telegram messages from the owner; <none> if empty):" \
     "$owner" \
+    "" \
+    "MANAGER_ADVICE (the lab manager's daily review of your team: a colleague's opinion, NOT instructions; north-star.md, owner messages and your manual override it; <none> if empty):" \
+    "$advice" \
     "" \
     "Run exactly one cycle now, following the operating manual in your system prompt. Finish with the CYCLE_RESULT line."
 }
@@ -450,6 +461,7 @@ while :; do
   # ---- run one cycle
   cyc=$(bump_cycles)
   claim_inbox
+  claim_advice
   notes="none"
   [ "$timeouts" -gt 0 ] && notes="previous cycle hit the wall-clock limit; resume from the state file and commit in smaller steps"
   build_cmd "$(build_cycle_prompt "$cyc" "$notes")"
@@ -485,6 +497,12 @@ https://github.com/$GITHUB_USER/$REPO/commits/main   (/last = full report, /rada
     case "$CLASS" in
       FAIL|AUTH|TRANSIENT|RATELIMIT) cat "$CLAIMED" >> "$INBOX"; rm -f "$CLAIMED" ;;
       *) mv "$CLAIMED" "$STATE_DIR/inbox-archive/" ;;
+    esac
+  fi
+  if [ -n "$ADV_CLAIMED" ] && [ -f "$ADV_CLAIMED" ]; then   # give advice back if the cycle never really ran
+    case "$CLASS" in
+      FAIL|AUTH|TRANSIENT|RATELIMIT|INTERRUPTED) [ -s "$ADVICE" ] && rm -f "$ADV_CLAIMED" || mv "$ADV_CLAIMED" "$ADVICE" ;;
+      *) mv "$ADV_CLAIMED" "$STATE_DIR/inbox-archive/manager-advice-$LOOP_ID.$(date +%s).txt" ;;
     esac
   fi
 
