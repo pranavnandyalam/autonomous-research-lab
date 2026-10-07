@@ -48,9 +48,10 @@ echo "== 8-10 GitHub scope (token injected by the host proxy)"
 if vmsh 'command -v gh' >/dev/null 2>&1; then
   c=$(vmsh "gh api repos/$GITHUB_USER/$REPO -i 2>/dev/null | head -1"); case "$c" in *200*) pass "can read $GITHUB_USER/$REPO" ;; *) fail "cannot read $GITHUB_USER/$REPO: '$c' (is the github secret set for this sandbox?)" ;; esac
   # user/repos also lists PUBLIC repos to any token, and .permissions reflects the account, not the token,
-  # so check (a) the only PRIVATE repo visible is $REPO and (b) a dry-run push to another repo is refused
-  r=$(vmsh "gh api user/repos --paginate --jq '.[] | select(.private) | .full_name' 2>/dev/null" | grep -E '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'); n=$(printf '%s\n' "$r" | grep -c .)
-  if [ "$n" -eq 1 ] && [ "$r" = "$GITHUB_USER/$REPO" ]; then pass "only private repo visible to the token: $r"; elif [ "$n" -eq 0 ]; then warn "could not list repos (token may lack Metadata:read)"; else fail "token can see $n private repos (expected only $GITHUB_USER/$REPO): $(echo "$r" | head -5 | tr '\n' ' ')"; fi
+  # so check (a) no PRIVATE repo other than $REPO is visible ($REPO itself may be public) and (b) a dry-run push to
+  # another repo is refused
+  r=$(vmsh "gh api user/repos --paginate --jq '.[] | select(.private) | .full_name' 2>/dev/null" | grep -E '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$' | grep -vx "$GITHUB_USER/$REPO"); n=$(printf '%s' "$r" | grep -c .)
+  if [ "$n" -eq 0 ]; then pass "token sees no private repo other than $GITHUB_USER/$REPO"; else fail "token can see $n other private repos: $(echo "$r" | head -5 | tr '\n' ' ')"; fi
   other=$(vmsh "gh api user/repos --paginate --jq '.[] | select(.owner.login == \"$GITHUB_USER\" and .full_name != \"$GITHUB_USER/$REPO\") | .full_name' 2>/dev/null" | head -1)
   if [ -n "$other" ] && [ -n "${WORKDIR:-}" ]; then
     # --dry-run authenticates for write but sends nothing and creates no ref
