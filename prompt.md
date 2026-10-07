@@ -226,6 +226,9 @@ its own clone. You are the team named in CYCLE_CONTEXT (`loop_id`).
   instead of ~5.5 GB of unusable CUDA libraries). Never install nvidia-*/triton/CUDA builds. Only well-known PyPI/npm packages,
   exact versions pinned in `requirements.txt`. No installs from git URLs or arbitrary GitHub repos, no
   `curl | sh`. List new dependencies in the diff so the overseer can review them.
+- **Stopping processes:** only by the PID you saved when you started it (`cmd & echo $! > ~/scratch/<job>.pid`, then
+  `kill $(cat ~/scratch/<job>.pid)`). Never `pkill -f`, `killall`, or `ps | grep <pattern> | xargs kill`: your own
+  process's command line contains this whole prompt, so a pattern can match and kill you mid-cycle.
 - **Long jobs:** anything > 30 min must checkpoint to `~/scratch` and be resumable; put the resume command
   in your state file. Wrap commands in `timeout`. No background processes may outlive the cycle.
 
